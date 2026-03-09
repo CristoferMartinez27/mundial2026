@@ -60,10 +60,14 @@
   <script src="../js/app.js"></script>
   <script src="../js/auth-ui.js"></script>
   <script>
-    function init() {
-      const selA = document.getElementById('equipoA');
-      const selB = document.getElementById('equipoB');
-      const equipos = Object.keys(EQUIPOS_STATS).sort();
+    async function init() {
+      const stats  = await obtenerStats();
+      const selA   = document.getElementById('equipoA');
+      const selB   = document.getElementById('equipoB');
+      // Solo mostrar selecciones reales (excluir Play-Offs genéricos)
+      const equipos = Object.keys(stats)
+        .filter(e => !e.startsWith('UEFA Play-Off') && !e.startsWith('Fifa Play-Off'))
+        .sort();
 
       equipos.forEach(eq => {
         selA.innerHTML += `<option value="${eq}">${eq}</option>`;
@@ -185,7 +189,7 @@
       </div>`;
     }
 
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => init());
   </script>
 </body>
 </html>

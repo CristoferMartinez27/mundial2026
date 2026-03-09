@@ -3,56 +3,59 @@
 //               clasificación). Usa DB.* de supabase.js para datos.
 // ============================================================
 
-// ── RANKING FIFA OFICIAL ─────────────────────────────────
+// ── ESTADÍSTICAS POR SELECCIÓN (datos reales, solo clasificados al Mundial 2026) ─
+// Las selecciones "extra" del CSV (Italia, Polonia, Chile, etc.) son las que
+// disputaron el repechaje — se usan solo como referencia en predicciones.html
 const EQUIPOS_STATS_DEFAULT = {
-  "España":           { goles:2.3, tarjetas:1.2, offsides:1.7, ranking:1  },
-  "Argentina":        { goles:2.2, tarjetas:1.5, offsides:1.6, ranking:2  },
-  "Francia":          { goles:2.0, tarjetas:1.4, offsides:1.5, ranking:3  },
-  "Inglaterra":       { goles:1.9, tarjetas:1.4, offsides:1.7, ranking:4  },
-  "Brasil":           { goles:2.1, tarjetas:1.3, offsides:1.2, ranking:5  },
-  "Portugal":         { goles:2.2, tarjetas:1.5, offsides:1.7, ranking:6  },
-  "Holanda":          { goles:1.9, tarjetas:1.4, offsides:1.7, ranking:7  },
-  "Marruecos":        { goles:1.5, tarjetas:1.7, offsides:1.3, ranking:8  },
-  "Bélgica":          { goles:1.8, tarjetas:1.4, offsides:1.5, ranking:9  },
-  "Alemania":         { goles:2.0, tarjetas:1.4, offsides:1.8, ranking:10 },
-  "Croacia":          { goles:1.6, tarjetas:1.4, offsides:1.5, ranking:11 },
-  "Senegal":          { goles:1.8, tarjetas:1.5, offsides:1.4, ranking:12 },
-  "Colombia":         { goles:1.7, tarjetas:1.6, offsides:1.5, ranking:14 },
-  "EEUU":             { goles:1.8, tarjetas:1.5, offsides:1.6, ranking:15 },
-  "México":           { goles:1.8, tarjetas:1.8, offsides:2.1, ranking:16 },
-  "Uruguay":          { goles:1.7, tarjetas:1.5, offsides:1.3, ranking:17 },
-  "Suiza":            { goles:1.7, tarjetas:1.3, offsides:1.4, ranking:18 },
-  "Japón":            { goles:1.6, tarjetas:1.2, offsides:1.5, ranking:19 },
-  "Irán":             { goles:1.3, tarjetas:1.9, offsides:1.3, ranking:20 },
-  "Corea del Sur":    { goles:1.6, tarjetas:1.5, offsides:1.8, ranking:22 },
-  "Ecuador":          { goles:1.4, tarjetas:1.6, offsides:1.5, ranking:23 },
-  "Austria":          { goles:1.7, tarjetas:1.5, offsides:1.6, ranking:24 },
-  "Australia":        { goles:1.3, tarjetas:1.5, offsides:1.4, ranking:27 },
-  "Argelia":          { goles:1.4, tarjetas:1.8, offsides:1.4, ranking:28 },
-  "Canadá":           { goles:1.5, tarjetas:1.4, offsides:1.6, ranking:29 },
-  "Egipto":           { goles:1.4, tarjetas:1.7, offsides:1.4, ranking:31 },
-  "Noruega":          { goles:1.8, tarjetas:1.3, offsides:1.9, ranking:32 },
-  "Panamá":           { goles:1.2, tarjetas:1.9, offsides:1.2, ranking:33 },
-  "Costa de Marfil":  { goles:1.5, tarjetas:1.7, offsides:1.4, ranking:37 },
-  "Escocia":          { goles:1.4, tarjetas:1.6, offsides:1.7, ranking:38 },
-  "Paraguay":         { goles:1.2, tarjetas:1.9, offsides:1.3, ranking:40 },
-  "Túnez":            { goles:1.2, tarjetas:1.8, offsides:1.3, ranking:47 },
-  "Uzbekistán":       { goles:1.1, tarjetas:1.7, offsides:1.3, ranking:52 },
-  "Catar":            { goles:1.1, tarjetas:1.8, offsides:1.2, ranking:56 },
-  "Sudáfrica":        { goles:1.2, tarjetas:1.9, offsides:1.5, ranking:60 },
-  "Arabia Saudí":     { goles:1.3, tarjetas:1.8, offsides:1.4, ranking:61 },
-  "Jordania":         { goles:1.0, tarjetas:1.8, offsides:1.1, ranking:64 },
-  "Cabo Verde":       { goles:1.1, tarjetas:1.9, offsides:1.2, ranking:67 },
-  "Ghana":            { goles:1.2, tarjetas:1.8, offsides:1.3, ranking:72 },
-  "Curasao":          { goles:0.9, tarjetas:2.0, offsides:1.0, ranking:81 },
-  "Haití":            { goles:0.8, tarjetas:2.1, offsides:1.1, ranking:83 },
-  "Nueva Zelanda":    { goles:1.1, tarjetas:1.5, offsides:1.2, ranking:85 },
-  "UEFA Play-Off A":  { goles:1.5, tarjetas:1.5, offsides:1.5, ranking:35 },
-  "UEFA Play-Off B":  { goles:1.4, tarjetas:1.6, offsides:1.4, ranking:43 },
-  "UEFA Play-Off C":  { goles:1.4, tarjetas:1.6, offsides:1.4, ranking:46 },
-  "UEFA Play-Off D":  { goles:1.3, tarjetas:1.6, offsides:1.3, ranking:50 },
-  "Fifa Play-Off 1":  { goles:1.3, tarjetas:1.7, offsides:1.3, ranking:55 },
-  "Fifa Play-Off 2":  { goles:1.2, tarjetas:1.7, offsides:1.2, ranking:58 },
+  "Alemania":        { goles:2.0, tarjetas:1.0, offsides:3.3, ranking:10 },
+  "Arabia Saudí":    { goles:1.5, tarjetas:1.4, offsides:1.6, ranking:32 },
+  "Argelia":         { goles:1.4, tarjetas:1.1, offsides:1.4, ranking:55 },
+  "Argentina":       { goles:2.2, tarjetas:1.5, offsides:4.3, ranking:2  },
+  "Australia":       { goles:1.4, tarjetas:1.2, offsides:1.5, ranking:54 },
+  "Austria":         { goles:1.8, tarjetas:1.0, offsides:2.9, ranking:51 },
+  "Brasil":          { goles:2.1, tarjetas:1.3, offsides:4.1, ranking:5  },
+  "Bélgica":         { goles:1.6, tarjetas:0.9, offsides:3.0, ranking:9  },
+  "Cabo Verde":      { goles:0.9, tarjetas:1.0, offsides:1.0, ranking:67 },
+  "Canadá":          { goles:1.8, tarjetas:1.2, offsides:2.8, ranking:29 },
+  "Catar":           { goles:1.0, tarjetas:1.0, offsides:1.0, ranking:56 },
+  "Colombia":        { goles:1.5, tarjetas:1.4, offsides:2.3, ranking:14 },
+  "Corea del Sur":   { goles:1.5, tarjetas:1.1, offsides:1.5, ranking:49 },
+  "Costa de Marfil": { goles:1.6, tarjetas:1.2, offsides:1.6, ranking:64 },
+  "Croacia":         { goles:1.5, tarjetas:1.2, offsides:3.1, ranking:11 },
+  "Curasao":         { goles:1.1, tarjetas:1.5, offsides:2.0, ranking:81 },
+  "EEUU":            { goles:1.5, tarjetas:1.8, offsides:3.2, ranking:15 },
+  "Ecuador":         { goles:1.3, tarjetas:1.5, offsides:1.7, ranking:50 },
+  "Egipto":          { goles:1.3, tarjetas:1.3, offsides:1.3, ranking:58 },
+  "Escocia":         { goles:1.4, tarjetas:1.6, offsides:1.7, ranking:38 },
+  "España":          { goles:2.3, tarjetas:1.2, offsides:3.4, ranking:1  },
+  "Fifa Play-Off 1": { goles:1.3, tarjetas:1.5, offsides:1.3, ranking:55 },
+  "Fifa Play-Off 2": { goles:1.3, tarjetas:1.5, offsides:1.3, ranking:58 },
+  "Francia":         { goles:2.0, tarjetas:1.1, offsides:3.2, ranking:3  },
+  "Ghana":           { goles:1.4, tarjetas:1.5, offsides:1.4, ranking:72 },
+  "Haití":           { goles:0.8, tarjetas:2.5, offsides:1.9, ranking:73 },
+  "Holanda":         { goles:2.0, tarjetas:0.9, offsides:3.2, ranking:7  },
+  "Inglaterra":      { goles:1.9, tarjetas:1.0, offsides:3.5, ranking:4  },
+  "Irán":            { goles:1.3, tarjetas:0.8, offsides:1.4, ranking:47 },
+  "Japón":           { goles:1.7, tarjetas:1.0, offsides:1.7, ranking:46 },
+  "Jordania":        { goles:1.1, tarjetas:0.9, offsides:1.3, ranking:64 },
+  "Marruecos":       { goles:1.2, tarjetas:1.4, offsides:1.2, ranking:8  },
+  "México":          { goles:2.0, tarjetas:1.4, offsides:3.0, ranking:16 },
+  "Noruega":         { goles:2.1, tarjetas:0.8, offsides:3.0, ranking:59 },
+  "Nueva Zelanda":   { goles:1.6, tarjetas:1.2, offsides:1.6, ranking:85 },
+  "Panamá":          { goles:0.9, tarjetas:2.0, offsides:2.4, ranking:60 },
+  "Paraguay":        { goles:1.2, tarjetas:1.7, offsides:1.5, ranking:67 },
+  "Portugal":        { goles:1.7, tarjetas:0.8, offsides:3.0, ranking:6  },
+  "RD Congo":        { goles:1.2, tarjetas:1.3, offsides:1.2, ranking:62 },
+  "Senegal":         { goles:1.3, tarjetas:1.1, offsides:1.3, ranking:12 },
+  "Sudáfrica":       { goles:1.2, tarjetas:1.6, offsides:1.2, ranking:60 },
+  "Suiza":           { goles:1.3, tarjetas:1.0, offsides:2.8, ranking:18 },
+  "Túnez":           { goles:1.1, tarjetas:1.3, offsides:1.1, ranking:47 },
+  "UEFA Play-Off A": { goles:1.3, tarjetas:1.5, offsides:1.3, ranking:35 },
+  "UEFA Play-Off B": { goles:1.3, tarjetas:1.5, offsides:1.3, ranking:43 },
+  "UEFA Play-Off C": { goles:1.3, tarjetas:1.5, offsides:1.3, ranking:46 },
+  "UEFA Play-Off D": { goles:1.3, tarjetas:1.5, offsides:1.3, ranking:50 },
+  "Uruguay":         { goles:1.7, tarjetas:1.6, offsides:2.1, ranking:44 },
+  "Uzbekistán":      { goles:1.0, tarjetas:1.0, offsides:1.2, ranking:52 },
 };
 
 // Cache en memoria (se carga desde BD al iniciar)
@@ -62,9 +65,12 @@ let _partidosCache = null;
 async function obtenerStats() {
   if (_statsCache) return _statsCache;
   try {
-    _statsCache = await DB.getStats();
-    if (!Object.keys(_statsCache).length) _statsCache = { ...EQUIPOS_STATS_DEFAULT };
-  } catch { _statsCache = { ...EQUIPOS_STATS_DEFAULT }; }
+    const fromDB = await DB.getStats();
+    // Merge: defaults first, then BD overrides (BD data wins)
+    _statsCache = { ...EQUIPOS_STATS_DEFAULT, ...fromDB };
+  } catch {
+    _statsCache = { ...EQUIPOS_STATS_DEFAULT };
+  }
   return _statsCache;
 }
 
