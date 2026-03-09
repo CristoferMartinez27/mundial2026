@@ -122,8 +122,8 @@
       const container = document.getElementById('listaPartidos');
 
       const filtrados = partidos.filter(p => {
-        if (filtroActivo === 'todos') return p.grupo && p.grupo.length === 1;
-        if (filtroActivo === 'elim') return p.fase && !p.grupo?.startsWith('Ronda 32');
+        if (filtroActivo === 'todos') return true;
+        if (filtroActivo === 'elim') return !p.grupo;
         return p.grupo === filtroActivo;
       });
 
@@ -173,45 +173,53 @@
     }
 
     async function abrirModal(id) {
-      const p = (await obtenerPartidos()).find(x => x.id === id);
+      const partidos = await obtenerPartidos();
+      const p = partidos.find(x => x.id === id);
       if (!p) return;
-      const esPlayoff = [p.local, p.visitante].some(t =>
-        t.includes('Play-Off') || t.includes('Fifa') || /^[W12][A-L\d]/.test(t) || t.startsWith('L'));
 
-      const esFase = p.fase && !p.grupo?.startsWith('Ronda');
+      const localN  = resolverEquipo(p.local, partidos);
+      const visitN  = resolverEquipo(p.visitante, partidos);
+      const esPlayoff = [localN, visitN].some(t =>
+        t.includes('Play-Off') || t.includes('Fifa') ||
+        /^[W][0-9]/.test(t) || /^[123][A-L]$/.test(t) || t.startsWith('L'));
+
+      const esFase = p.fase && !p.grupo;
       document.getElementById('modalGrupo').textContent = esFase ? p.fase : `GRUPO ${p.grupo}`;
-      document.getElementById('modalTitulo').textContent = `${p.local}  vs  ${p.visitante}`;
+      document.getElementById('modalTitulo').textContent = `${localN}  vs  ${visitN}`;
       document.getElementById('modalFecha').textContent  = `${p.fecha}  ·  ${p.hora} hora Guatemala`;
 
       const resEl = document.getElementById('modalResultado');
       if (p.estado === 'finalizado') {
         resEl.classList.remove('hidden');
-        document.getElementById('marcadorFinal').textContent = `${p.goles_local} – ${p.goles_visitante}`;
+        let marcStr = `${p.goles_local} – ${p.goles_visitante}`;
+        if (p.tiene_penales) marcStr += ` (Pen: ${p.penales_local}–${p.penales_visitante})`;
+        document.getElementById('marcadorFinal').textContent = marcStr;
       } else {
         resEl.classList.add('hidden');
       }
 
-      document.getElementById('predEquipoA').textContent = p.local;
-      document.getElementById('predEquipoB').textContent = p.visitante;
+      document.getElementById('predEquipoA').textContent = localN;
+      document.getElementById('predEquipoB').textContent = visitN;
 
       if (!esPlayoff) {
-        const pred = predecirPartido(p.local, p.visitante);
+        const pred = await predecirPartido(localN, visitN);
         document.getElementById('predMarcador').textContent    = `${pred.marcA} – ${pred.marcB}`;
         document.getElementById('predTarjAmrilla').textContent = pred.tarjAm;
         document.getElementById('predTarjRoja').textContent    = pred.tarjRj;
         document.getElementById('predOffsides').textContent    = pred.offs;
         document.getElementById('predExplicacion').textContent = pred.explicacion;
-        document.getElementById('probALabel').textContent = `${p.local.split(' ')[0]}: ${pred.probA}%`;
-        document.getElementById('probBLabel').textContent = `${p.visitante.split(' ')[0]}: ${pred.probB}%`;
+        document.getElementById('probALabel').textContent = `${localN.split(' ')[0]}: ${pred.probA}%`;
+        document.getElementById('probBLabel').textContent = `${visitN.split(' ')[0]}: ${pred.probB}%`;
         document.getElementById('barA').style.width = pred.probA + '%';
         document.getElementById('barE').style.width = pred.probEmpate + '%';
         document.getElementById('barB').style.width = pred.probB + '%';
-        document.getElementById('rankA').textContent = `#${pred.rankA}`;
-        document.getElementById('rankB').textContent = `#${pred.rankB}`;
       } else {
         document.getElementById('predMarcador').textContent    = '? – ?';
         document.getElementById('predExplicacion').textContent = 'Los equipos de este partido aún no están definidos (clasificación pendiente).';
-        ['predTarjAmrilla','predTarjRoja','predOffsides','rankA','rankB'].forEach(id => document.getElementById(id).textContent = '—');
+        ['predTarjAmrilla','predTarjRoja','predOffsides'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = '—';
+        });
         document.getElementById('barA').style.width = '50%';
         document.getElementById('barE').style.width = '0%';
         document.getElementById('barB').style.width = '50%';
