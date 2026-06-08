@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grupos — Mundial 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/styles.css"/>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><span class="trophy">⚽</span><span class="brand-text">MUNDIAL <strong>2026</strong></span></div>
+    <div class="nav-links" id="navLinks">
+      <a href="../index.html">Inicio</a>
+      <a href="calendario.html">Partidos</a>
+      <a href="grupos.html" class="active">Grupos</a>
+      <a href="brackets.html">Bracket</a>
+      <a href="quiniela.html">Quiniela</a>
+      <a href="lideres.html">Líderes</a>
+      <div id="authArea"><a href="login.html" class="btn-nav">Entrar</a></div>
+    </div>
+    <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+  </nav>
+
+  <div class="page-header">
+    <h1>🏆 TABLA DE GRUPOS</h1>
+    <p>Clasificación actualizada — 🟢 primeros dos clasifican a 16avos</p>
+  </div>
+
+  <div class="page-content">
+    <div id="todosGrupos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:1.5rem"></div>
+  </div>
+
+  <footer class="footer"><p>⚽ Quiniela Devel - Copa Mundial FIFA 2026 ⚽</p></footer>
+
+  <script src="../js/supabase.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/auth-ui.js"></script>
+  <script>
+    async function renderGrupos() {
+      const container = document.getElementById('todosGrupos');
+      container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-dim)">Cargando grupos...</div>';
+      const partidos = await obtenerPartidos();
+      container.innerHTML = '';
+      Object.keys(GRUPOS).forEach(letra => {
+        const tabla = calcularClasificacion(letra, partidos);
+        let html = `<div class="group-block">
+          <div class="group-header">GRUPO ${letra}</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>#</th><th>Equipo</th>
+                <th title="Jugados">PJ</th>
+                <th title="Ganados" style="color:var(--green)">PG</th>
+                <th title="Empatados">PE</th>
+                <th title="Perdidos" style="color:var(--red)">PP</th>
+                <th title="Goles a Favor">GF</th>
+                <th title="Goles en Contra">GC</th>
+                <th title="Diferencia">DG</th>
+                <th title="Puntos" style="color:var(--gold)">PTS</th>
+              </tr></thead>
+              <tbody>`;
+        tabla.forEach((eq, i) => {
+          const dg = eq.dg >= 0 ? '+'+eq.dg : ''+eq.dg;
+          const borde = i < 2 ? 'border-left:3px solid var(--green)' : i === 2 ? 'border-left:3px solid var(--text-dim)' : '';
+          const icono = i === 0 ? '🟢' : i === 1 ? '🟢' : i === 2 ? '⚪' : '🔴';
+          html += `<tr style="${borde}">
+            <td class="td-num" style="color:var(--text-dim)">${i+1}</td>
+            <td class="td-team">${icono} ${eq.equipo}</td>
+            <td class="td-num">${eq.pj}</td>
+            <td class="td-num win">${eq.pg}</td>
+            <td class="td-num">${eq.pe}</td>
+            <td class="td-num loss">${eq.pp}</td>
+            <td class="td-num">${eq.gf}</td>
+            <td class="td-num">${eq.gc}</td>
+            <td class="td-num">${dg}</td>
+            <td class="td-num pts">${eq.pts}</td>
+          </tr>`;
+        });
+        html += `</tbody></table></div></div>`;
+        container.innerHTML += html;
+      });
+    }
+    document.addEventListener('DOMContentLoaded', renderGrupos);
+  </script>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bracket — Mundial 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/styles.css"/>
+  <style>
+    .bracket { display:flex; gap:0; overflow-x:auto; padding:1rem 0 2rem; }
+    .bracket-round { display:flex; flex-direction:column; min-width:170px; flex:1; }
+    .round-label {
+      font-family:var(--font-display);font-size:.7rem;letter-spacing:2px;
+      text-transform:uppercase;color:var(--gold);text-align:center;
+      padding:.6rem .5rem;border-bottom:1px solid var(--border);margin-bottom:.5rem;
+    }
+    .bracket-slots { display:flex; flex-direction:column; flex:1; justify-content:space-around; padding:0 .3rem; gap:.4rem; }
+    .bm {
+      background:var(--bg2);border:1px solid var(--border);border-radius:6px;overflow:hidden;
+      transition:border-color .2s;
+    }
+    .bm:hover { border-color: var(--gold); }
+    .bt {
+      display:flex;justify-content:space-between;align-items:center;
+      padding:.45rem .7rem;font-size:.82rem;border-bottom:1px solid var(--border);
+      min-height:30px;
+    }
+    .bt:last-child { border-bottom:none; }
+    .bt.winner { color:var(--gold);font-weight:700;background:rgba(255,215,0,.05); }
+    .bt.tbd { color:var(--text-dim);font-style:italic; }
+    .bt-score { font-family:var(--font-display);font-size:.9rem;color:var(--gold);margin-left:.4rem;flex-shrink:0; }
+    .pen-badge { font-size:.55rem;color:var(--cyan);margin-left:.3rem;letter-spacing:1px; }
+    .num-badge { font-size:.6rem;color:var(--text-dim);background:var(--bg3);padding:.1rem .3rem;border-radius:3px;margin-right:.4rem;flex-shrink:0; }
+
+    /* Final destacada */
+    .final-wrap {
+      background: linear-gradient(135deg, rgba(255,215,0,.12), rgba(255,215,0,.04));
+      border: 2px solid rgba(255,215,0,.5);
+      border-radius: 12px;
+      padding: .8rem .5rem;
+      margin: .5rem 0;
+    }
+    .final-label {
+      font-family: var(--font-display);
+      font-size: .8rem;
+      letter-spacing: 3px;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: .6rem;
+    }
+    .final-wrap .bm {
+      border-color: rgba(255,215,0,.4);
+    }
+    .final-wrap .bt { font-size: .9rem; padding: .6rem .8rem; min-height: 36px; }
+    .final-wrap .bt.winner { background: rgba(255,215,0,.1); }
+
+    /* Tercer puesto — más discreto */
+    .tercer-wrap {
+      max-width: 360px;
+      margin: 1rem auto 0;
+      opacity: .85;
+    }
+    .tercer-header {
+      font-family: var(--font-display);
+      font-size: .72rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-align: center;
+      padding: .5rem;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 6px 6px 0 0;
+    }
+    .tercer-wrap .bm {
+      border-radius: 0 0 6px 6px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><span class="trophy">⚽</span><span class="brand-text">MUNDIAL <strong>2026</strong></span></div>
+    <div class="nav-links" id="navLinks">
+      <a href="../index.html">Inicio</a>
+      <a href="calendario.html">Partidos</a>
+      <a href="grupos.html">Grupos</a>
+      <a href="brackets.html" class="active">Bracket</a>
+      <a href="quiniela.html">Quiniela</a>
+      <a href="lideres.html">Líderes</a>
+      <div id="authArea"><a href="login.html" class="btn-nav">Entrar</a></div>
+    </div>
+    <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+  </nav>
+
+  <div class="page-header">
+    <h1>⚔️ BRACKET ELIMINATORIO</h1>
+    <p>Los equipos se resuelven automáticamente al ingresar resultados · Los nombres en cursiva aún no están definidos</p>
+  </div>
+
+  <div class="page-content">
+    <div id="bracketWrap" style="overflow-x:auto">
+      <div class="bracket" id="bracket"></div>
+    </div>
+
+    <!-- Tercer lugar separado — más pequeño/discreto -->
+    <div class="tercer-wrap">
+      <div class="tercer-header">🥉 Tercer Puesto — 18 Jul</div>
+      <div id="tercerLugar"></div>
+    </div>
+  </div>
+
+  <footer class="footer"><p>⚽ Quiniela Devel - Copa Mundial FIFA 2026 ⚽</p></footer>
+
+  <script src="../js/supabase.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/auth-ui.js"></script>
+  <script>
+    function bMatch(numA, numB, partido, partidos) {
+      const eqA = resolverEquipo(numA, partidos);
+      const eqB = resolverEquipo(numB, partidos);
+      const tdA = eqA === numA;
+      const tdB = eqB === numB;
+      let winnerA = false, winnerB = false;
+      if (partido && partido.estado === 'finalizado') {
+        if (partido.tiene_penales) {
+          winnerA = (partido.penales_local||0) > (partido.penales_visitante||0);
+          winnerB = !winnerA;
+        } else {
+          winnerA = partido.goles_local > partido.goles_visitante;
+          winnerB = partido.goles_visitante > partido.goles_local;
+        }
+      }
+      const scoreA = partido?.estado==='finalizado' ? partido.goles_local : '';
+      const scoreB = partido?.estado==='finalizado' ? partido.goles_visitante : '';
+      const penA   = partido?.tiene_penales ? `<span class="pen-badge">(${partido.penales_local})</span>` : '';
+      const penB   = partido?.tiene_penales ? `<span class="pen-badge">(${partido.penales_visitante})</span>` : '';
+      const pNum   = partido ? `<span class="num-badge">P${partido.num}</span>` : '';
+
+      return `<div class="bm">
+        <div class="bt ${winnerA?'winner':''} ${tdA?'tbd':''}">
+          ${pNum}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eqA}</span>
+          ${penA}<span class="bt-score">${scoreA}</span>
+        </div>
+        <div class="bt ${winnerB?'winner':''} ${tdB?'tbd':''}">
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eqB}</span>
+          ${penB}<span class="bt-score">${scoreB}</span>
+        </div>
+      </div>`;
+    }
+
+    // Versión especial para la Final — más grande y destacada
+    function bMatchFinal(numA, numB, partido, partidos) {
+      const eqA = resolverEquipo(numA, partidos);
+      const eqB = resolverEquipo(numB, partidos);
+      const tdA = eqA === numA;
+      const tdB = eqB === numB;
+      let winnerA = false, winnerB = false;
+      if (partido && partido.estado === 'finalizado') {
+        if (partido.tiene_penales) {
+          winnerA = (partido.penales_local||0) > (partido.penales_visitante||0);
+          winnerB = !winnerA;
+        } else {
+          winnerA = partido.goles_local > partido.goles_visitante;
+          winnerB = partido.goles_visitante > partido.goles_local;
+        }
+      }
+      const scoreA = partido?.estado==='finalizado' ? partido.goles_local : '';
+      const scoreB = partido?.estado==='finalizado' ? partido.goles_visitante : '';
+      const penA   = partido?.tiene_penales ? `<span class="pen-badge">(${partido.penales_local})</span>` : '';
+      const penB   = partido?.tiene_penales ? `<span class="pen-badge">(${partido.penales_visitante})</span>` : '';
+      const pNum   = partido ? `<span class="num-badge">P${partido.num}</span>` : '';
+
+      return `<div class="final-wrap">
+        <div class="final-label">🏆 GRAN FINAL — 19 Jul</div>
+        <div class="bm">
+          <div class="bt ${winnerA?'winner':''} ${tdA?'tbd':''}">
+            ${pNum}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eqA}</span>
+            ${penA}<span class="bt-score">${scoreA}</span>
+          </div>
+          <div class="bt ${winnerB?'winner':''} ${tdB?'tbd':''}">
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eqB}</span>
+            ${penB}<span class="bt-score">${scoreB}</span>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    async function render() {
+      const partidos = await obtenerPartidos();
+      const P = {};
+      partidos.forEach(p => { P[p.num] = p; });
+
+      const r32_left = [
+        { a:'2A',  b:'2B',         p:P[73] },
+        { a:'1E',  b:'3A/B/C/D/F', p:P[74] },
+        { a:'1F',  b:'2C',         p:P[75] },
+        { a:'1C',  b:'2F',         p:P[76] },
+        { a:'1I',  b:'3C/D/F/G/H', p:P[77] },
+        { a:'2E',  b:'2I',         p:P[78] },
+        { a:'1A',  b:'3C/E/F/H/I', p:P[79] },
+        { a:'1L',  b:'3E/H/I/J/K', p:P[80] },
+      ];
+      const r32_right = [
+        { a:'1D',  b:'3B/E/F/I/J', p:P[81] },
+        { a:'1G',  b:'3A/E/H/I/J', p:P[82] },
+        { a:'2K',  b:'2L',         p:P[83] },
+        { a:'1H',  b:'2J',         p:P[84] },
+        { a:'1B',  b:'3E/F/G/I/J', p:P[85] },
+        { a:'1J',  b:'2H',         p:P[86] },
+        { a:'1K',  b:'3D/E/I/J/L', p:P[87] },
+        { a:'2D',  b:'2G',         p:P[88] },
+      ];
+
+      const oct_left = [
+        { a:'W74', b:'W77', p:P[89] },
+        { a:'W73', b:'W75', p:P[90] },
+        { a:'W76', b:'W78', p:P[91] },
+        { a:'W79', b:'W80', p:P[92] },
+      ];
+      const oct_right = [
+        { a:'W83', b:'W84', p:P[93] },
+        { a:'W81', b:'W82', p:P[94] },
+        { a:'W86', b:'W88', p:P[95] },
+        { a:'W85', b:'W87', p:P[96] },
+      ];
+
+      function slots(arr) {
+        return `<div class="bracket-slots">${arr.map(m=>bMatch(m.a,m.b,m.p,partidos)).join('')}</div>`;
+      }
+
+      document.getElementById('bracket').innerHTML = `
+        <div class="bracket-round">
+          <div class="round-label">16avos (1-8)</div>
+          ${slots(r32_left)}
+        </div>
+        <div class="bracket-round">
+          <div class="round-label">Octavos</div>
+          ${slots(oct_left)}
+        </div>
+        <div class="bracket-round">
+          <div class="round-label">Cuartos</div>
+          <div class="bracket-slots">
+            ${bMatch('W89','W90',P[97],partidos)}
+            ${bMatch('W91','W92',P[99],partidos)}
+          </div>
+        </div>
+        <div class="bracket-round">
+          <div class="round-label" style="color:var(--gold);font-size:.8rem;letter-spacing:3px">✨ SEMI / FINAL</div>
+          <div class="bracket-slots">
+            ${bMatch('W97','W98',P[101],partidos)}
+            ${bMatchFinal('W101','W102',P[104],partidos)}
+            ${bMatch('W99','W100',P[102],partidos)}
+          </div>
+        </div>
+        <div class="bracket-round">
+          <div class="round-label">Cuartos</div>
+          <div class="bracket-slots">
+            ${bMatch('W93','W94',P[98],partidos)}
+            ${bMatch('W95','W96',P[100],partidos)}
+          </div>
+        </div>
+        <div class="bracket-round">
+          <div class="round-label">Octavos</div>
+          ${slots(oct_right)}
+        </div>
+        <div class="bracket-round">
+          <div class="round-label">16avos (9-16)</div>
+          ${slots(r32_right)}
+        </div>
+      `;
+
+      document.getElementById('tercerLugar').innerHTML = bMatch('L101','L102',P[103],partidos);
+    }
+
+    document.addEventListener('DOMContentLoaded', render);
+  </script>
+</body>
+</html>

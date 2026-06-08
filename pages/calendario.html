@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calendario — Mundial 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/styles.css"/>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><span class="trophy">⚽</span><span class="brand-text">MUNDIAL <strong>2026</strong></span></div>
+    <div class="nav-links" id="navLinks">
+      <a href="../index.html">Inicio</a>
+      <a href="calendario.html" class="active">Partidos</a>
+      <a href="grupos.html">Grupos</a>
+      <a href="brackets.html">Bracket</a>
+      <a href="quiniela.html">Quiniela</a>
+      <a href="lideres.html">Líderes</a>
+      <div id="authArea"><a href="login.html" class="btn-nav">Entrar</a></div>
+    </div>
+    <button class="hamburger" onclick="toggleMenu()">☰</button>
+  </nav>
+
+  <div class="page-header">
+    <h1>📅 CALENDARIO DE PARTIDOS</h1>
+    <p>Haz clic en cualquier partido para ver la predicción estadística</p>
+  </div>
+
+  <div class="page-content">
+    <div class="tabs" id="filtros" style="overflow-x:auto;padding-bottom:.5rem;flex-wrap:nowrap">
+      <div class="tab active" onclick="filtrar(this,'todos')">Todos</div>
+      <div class="tab" onclick="filtrar(this,'A')">Grp A</div>
+      <div class="tab" onclick="filtrar(this,'B')">Grp B</div>
+      <div class="tab" onclick="filtrar(this,'C')">Grp C</div>
+      <div class="tab" onclick="filtrar(this,'D')">Grp D</div>
+      <div class="tab" onclick="filtrar(this,'E')">Grp E</div>
+      <div class="tab" onclick="filtrar(this,'F')">Grp F</div>
+      <div class="tab" onclick="filtrar(this,'G')">Grp G</div>
+      <div class="tab" onclick="filtrar(this,'H')">Grp H</div>
+      <div class="tab" onclick="filtrar(this,'I')">Grp I</div>
+      <div class="tab" onclick="filtrar(this,'J')">Grp J</div>
+      <div class="tab" onclick="filtrar(this,'K')">Grp K</div>
+      <div class="tab" onclick="filtrar(this,'L')">Grp L</div>
+      <div class="tab" onclick="filtrar(this,'elim')">Eliminatoria</div>
+    </div>
+
+    <div id="listaPartidos"></div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modalOverlay" onclick="cerrarModal(event)">
+    <div class="modal" id="modalContent">
+      <div class="modal-header">
+        <div>
+          <div id="modalGrupo" class="badge-group mb1"></div>
+          <div class="modal-title" id="modalTitulo"></div>
+          <div style="font-size:.85rem;color:var(--text-dim);margin-top:.3rem" id="modalFecha"></div>
+        </div>
+        <button class="modal-close" onclick="cerrarModalBtn()">✕</button>
+      </div>
+
+      <div id="modalResultado" class="hidden">
+        <div style="text-align:center;padding:1rem;background:var(--bg3);border-radius:8px;margin-bottom:1rem">
+          <div style="font-size:.7rem;letter-spacing:2px;color:var(--text-dim);margin-bottom:.5rem">RESULTADO FINAL</div>
+          <div style="font-family:var(--font-display);font-size:2.5rem;color:var(--gold)" id="marcadorFinal"></div>
+        </div>
+      </div>
+
+      <div class="pred-box">
+        <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:.8rem">🤖 PREDICCIÓN ESTADÍSTICA</div>
+        <div class="pred-teams">
+          <span id="predEquipoA"></span>
+          <div class="pred-score" id="predMarcador">0 – 0</div>
+          <span id="predEquipoB"></span>
+        </div>
+
+        <div style="margin:1rem 0">
+          <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-dim);margin-bottom:.4rem">
+            <span id="probALabel"></span>
+            <span>Empate 15%</span>
+            <span id="probBLabel"></span>
+          </div>
+          <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px">
+            <div id="barA" style="background:var(--cyan);transition:width .5s"></div>
+            <div id="barE" style="background:rgba(255,255,255,.15)"></div>
+            <div id="barB" style="background:var(--red);transition:width .5s"></div>
+          </div>
+        </div>
+
+        <div class="pred-stats">
+          <div class="pred-stat"><div class="val" id="predTarjAmrilla">—</div><div class="lbl">🟨 Amarillas</div></div>
+          <div class="pred-stat"><div class="val" id="predTarjRoja">—</div><div class="lbl">🟥 Rojas</div></div>
+          <div class="pred-stat"><div class="val" id="predOffsides">—</div><div class="lbl">🚩 Offsides</div></div>
+        </div>
+      </div>
+
+      <div class="pred-explain" id="predExplicacion"></div>
+    </div>
+  </div>
+
+  <footer class="footer"><p>⚽ Quiniela Devel - Copa Mundial FIFA 2026 ⚽</p></footer>
+
+  <script src="../js/supabase.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/auth-ui.js"></script>
+  <script>
+    function toggleMenu() { document.getElementById('navLinks').classList.toggle('open'); }
+    let filtroActivo = 'todos';
+
+    // Orden cronológico de fechas del torneo
+    const ORDEN_FECHAS = [
+      'Jue 11 Jun','Vie 12 Jun','Sáb 13 Jun','Dom 14 Jun','Lun 15 Jun',
+      'Mar 16 Jun','Mié 17 Jun','Jue 18 Jun','Vie 19 Jun','Sáb 20 Jun',
+      'Dom 21 Jun','Lun 22 Jun','Mar 23 Jun','Mié 24 Jun','Jue 25 Jun',
+      'Vie 26 Jun','Sáb 27 Jun','Dom 28 Jun','Lun 29 Jun','Mar 30 Jun',
+      'Mié 1 Jul','Jue 2 Jul','Vie 3 Jul','Sáb 4 Jul','Dom 5 Jul',
+      'Lun 6 Jul','Mar 7 Jul','Jue 9 Jul','Vie 10 Jul','Sáb 11 Jul',
+      'Mar 14 Jul','Mié 15 Jul','Sáb 18 Jul','Dom 19 Jul',
+    ];
+
+    function ordenFecha(fecha) {
+      const idx = ORDEN_FECHAS.indexOf(fecha);
+      return idx === -1 ? 999 : idx;
+    }
+
+    function filtrar(el, grupo) {
+      filtroActivo = grupo;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      renderPartidos();
+    }
+
+    async function renderPartidos() {
+      const partidos = await obtenerPartidos();
+      const container = document.getElementById('listaPartidos');
+
+      const filtrados = partidos.filter(p => {
+        if (filtroActivo === 'todos') return true;
+        if (filtroActivo === 'elim') return !p.grupo;
+        return p.grupo === filtroActivo;
+      });
+
+      // Agrupar por fecha manteniendo orden cronológico
+      const porFecha = {};
+      filtrados.forEach(p => {
+        const key = p.fecha || 'Sin fecha';
+        if (!porFecha[key]) porFecha[key] = [];
+        porFecha[key].push(p);
+      });
+
+      // Ordenar las fechas cronológicamente
+      const fechasOrdenadas = Object.keys(porFecha).sort(
+        (a, b) => ordenFecha(a) - ordenFecha(b)
+      );
+
+      // Dentro de cada fecha, ordenar por hora
+      fechasOrdenadas.forEach(fecha => {
+        porFecha[fecha].sort((a, b) => {
+          const toMin = h => {
+            const [hh, mm] = (h || '00:00').split(':').map(Number);
+            return hh * 60 + mm;
+          };
+          return toMin(a.hora) - toMin(b.hora);
+        });
+      });
+
+      let html = '';
+      fechasOrdenadas.forEach(fecha => {
+        const ps = porFecha[fecha];
+        html += `<div class="group-block" style="margin-bottom:1.2rem">
+          <div class="date-header">📅 ${fecha}</div>`;
+
+        ps.forEach(p => {
+          const esFase = p.fase && !p.grupo?.startsWith('Ronda');
+          const label  = esFase ? p.fase : `GRUPO ${p.grupo}`;
+          const score  = p.estado === 'finalizado'
+            ? `<span class="match-score">${p.goles_local}&nbsp;–&nbsp;${p.goles_visitante}</span>`
+            : `<span class="match-vs">VS</span>`;
+          const statusCls = p.estado === 'finalizado' ? 'status-done' : p.estado === 'en vivo' ? 'status-live' : 'status-pending';
+          const statusTxt = p.estado === 'finalizado' ? 'Final' : p.estado === 'en vivo' ? '⚡ EN VIVO' : p.hora;
+
+          html += `
+            <div class="match-row" onclick="abrirModal(${p.id})">
+              <div class="team-side">
+                <span class="team-name">${p.local}</span>
+              </div>
+              <div class="match-center">
+                <span class="badge-group" style="font-size:.6rem">${label}</span>
+                ${score}
+                <span class="match-time-big">${statusTxt}</span>
+                <span class="badge-status ${statusCls}" style="display:none"></span>
+              </div>
+              <div class="team-side away">
+                <span class="team-name">${p.visitante}</span>
+              </div>
+            </div>`;
+        });
+
+        html += `</div>`;
+      });
+
+      if (!html) html = `<div style="text-align:center;padding:3rem;color:var(--text-dim)">Sin partidos en este filtro.</div>`;
+      container.innerHTML = html;
+    }
+
+    async function abrirModal(id) {
+      const partidos = await obtenerPartidos();
+      const p = partidos.find(x => x.id === id);
+      if (!p) return;
+
+      const localN  = resolverEquipo(p.local, partidos);
+      const visitN  = resolverEquipo(p.visitante, partidos);
+      const esPlayoff = [localN, visitN].some(t =>
+        t.includes('Play-Off') || t.includes('Fifa') ||
+        /^[W][0-9]/.test(t) || /^[123][A-L]$/.test(t) || t.startsWith('L'));
+
+      const esFase = p.fase && !p.grupo;
+      document.getElementById('modalGrupo').textContent = esFase ? p.fase : `GRUPO ${p.grupo}`;
+      document.getElementById('modalTitulo').textContent = `${localN}  vs  ${visitN}`;
+      document.getElementById('modalFecha').textContent  = `${p.fecha}  ·  ${p.hora} hora Guatemala`;
+
+      const resEl = document.getElementById('modalResultado');
+      if (p.estado === 'finalizado') {
+        resEl.classList.remove('hidden');
+        let marcStr = `${p.goles_local} – ${p.goles_visitante}`;
+        if (p.tiene_penales) marcStr += ` (Pen: ${p.penales_local}–${p.penales_visitante})`;
+        document.getElementById('marcadorFinal').textContent = marcStr;
+      } else {
+        resEl.classList.add('hidden');
+      }
+
+      document.getElementById('predEquipoA').textContent = localN;
+      document.getElementById('predEquipoB').textContent = visitN;
+
+      if (!esPlayoff) {
+        const pred = await predecirPartido(localN, visitN);
+        document.getElementById('predMarcador').textContent    = `${pred.marcA} – ${pred.marcB}`;
+        document.getElementById('predTarjAmrilla').textContent = pred.tarjAm;
+        document.getElementById('predTarjRoja').textContent    = pred.tarjRj;
+        document.getElementById('predOffsides').textContent    = pred.offs;
+        document.getElementById('predExplicacion').textContent = pred.explicacion;
+        document.getElementById('probALabel').textContent = `${localN.split(' ')[0]}: ${pred.probA}%`;
+        document.getElementById('probBLabel').textContent = `${visitN.split(' ')[0]}: ${pred.probB}%`;
+        document.getElementById('barA').style.width = pred.probA + '%';
+        document.getElementById('barE').style.width = pred.probEmpate + '%';
+        document.getElementById('barB').style.width = pred.probB + '%';
+      } else {
+        document.getElementById('predMarcador').textContent    = '? – ?';
+        document.getElementById('predExplicacion').textContent = 'Los equipos de este partido aún no están definidos (clasificación pendiente).';
+        ['predTarjAmrilla','predTarjRoja','predOffsides'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = '—';
+        });
+        document.getElementById('barA').style.width = '50%';
+        document.getElementById('barE').style.width = '0%';
+        document.getElementById('barB').style.width = '50%';
+        document.getElementById('probALabel').textContent = '50%';
+        document.getElementById('probBLabel').textContent = '50%';
+      }
+      document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function cerrarModalBtn() { document.getElementById('modalOverlay').classList.remove('open'); }
+    function cerrarModal(e) { if (e.target.id === 'modalOverlay') cerrarModalBtn(); }
+
+    document.addEventListener('DOMContentLoaded', renderPartidos);
+  </script>
+</body>
+</html>

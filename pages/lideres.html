@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tabla de Líderes — Mundial 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/styles.css"/>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><span class="trophy">⚽</span><span class="brand-text">MUNDIAL <strong>2026</strong></span></div>
+    <div class="nav-links" id="navLinks">
+      <a href="../index.html">Inicio</a>
+      <a href="calendario.html">Partidos</a>
+      <a href="grupos.html">Grupos</a>
+      <a href="brackets.html">Bracket</a>
+      <a href="quiniela.html">Quiniela</a>
+      <a href="lideres.html" class="active">Líderes</a>
+      <div id="authArea"></div>
+    </div>
+    <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+  </nav>
+
+  <div class="page-header">
+    <h1>🥇 TABLA DE LÍDERES</h1>
+    <p>Ranking actualizado de participantes</p>
+  </div>
+
+  <div class="page-content">
+    <div class="group-block" style="max-width:700px;margin:0 auto">
+      <div class="group-header">🏆 CLASIFICACIÓN GENERAL</div>
+      <div id="tablaLideres"><div style="text-align:center;padding:2rem;color:var(--text-dim)">Calculando puntos...</div></div>
+    </div>
+    <div style="max-width:700px;margin:2rem auto">
+      <div class="alert alert-info">
+        <strong>Puntos:</strong> Exacto → 5 · Ganador+diferencia → 3 · Solo ganador → 2 · Goles totales → 1
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer"><p>⚽ Quiniela Devel - Copa Mundial FIFA 2026 ⚽</p></footer>
+
+  <script src="../js/supabase.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/auth-ui.js"></script>
+  <script>
+    async function renderLideres() {
+      const container = document.getElementById('tablaLideres');
+      const session = SBAuth.getSession();
+      try {
+        const tabla = await DB.calcularLideres();
+        if (!tabla.length) {
+          container.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--text-dim)">
+            <div style="font-size:2rem;margin-bottom:1rem">🏟️</div>
+            <p>Aún no hay participantes en la quiniela.</p>
+            <a href="login.html" style="color:var(--gold)">¡Únete y sé el primero!</a>
+          </div>`;
+          return;
+        }
+        let html = '';
+        tabla.forEach((u, i) => {
+          const icon = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+          const cls  = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+          const esYo = session && session.user.id === u.id;
+          html += `<div class="leader-row" style="${esYo?'background:rgba(255,215,0,.05);border-left:3px solid var(--gold)':''}">
+            <div class="leader-rank ${cls}">${icon}</div>
+            <div class="leader-name">${u.nombre} ${esYo?'<span style="font-size:.7rem;color:var(--gold)">(Tú)</span>':''}</div>
+            <div style="font-size:.78rem;color:var(--text-dim);margin-right:1rem">@${u.username}</div>
+            <div class="leader-pts">${u.puntos} <span style="font-size:.7rem;color:var(--text-dim)">pts</span></div>
+          </div>`;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `<div class="alert alert-error">Error: ${e.message||e}</div>`;
+      }
+    }
+    document.addEventListener('DOMContentLoaded', renderLideres);
+  </script>
+</body>
+</html>
