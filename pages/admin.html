@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel Admin — Mundial 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/styles.css"/>
+  <style>
+    .admin-grid{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 57px)}
+    @media(max-width:768px){.admin-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><span class="trophy">⚽</span><span class="brand-text">MUNDIAL <strong>2026</strong></span></div>
+    <div class="nav-links" id="navLinks">
+      <a href="../index.html">Inicio</a>
+      <a href="admin.html" class="active">🔑 Admin</a>
+      <div id="authArea"></div>
+    </div>
+    <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+  </nav>
+
+  <div class="admin-grid">
+    <div class="admin-sidebar">
+      <div class="sidebar-item active" id="sb_res"      onclick="tab('res')">⚽ Resultados</div>
+      <div class="sidebar-item"         id="sb_stats"   onclick="tab('stats')">📊 Estadísticas CSV</div>
+      <div class="sidebar-item"         id="sb_playoff" onclick="tab('playoff')">📝 Editar clasificados</div>
+      <div class="sidebar-item"         id="sb_users"   onclick="tab('users')">👥 Usuarios</div>
+    </div>
+
+    <div class="admin-main">
+
+      <!-- ════ RESULTADOS ════ -->
+      <div id="sec_res">
+        <h2 style="font-family:var(--font-display);color:var(--gold);margin-bottom:1.2rem">⚽ Ingresar Resultado Oficial</h2>
+        <div id="al_res" class="mb1"></div>
+        <div class="form-group">
+          <label>Seleccionar partido</label>
+          <select id="selPartido" onchange="cargarFormRes()">
+            <option value="">— Elige un partido —</option>
+          </select>
+        </div>
+        <div id="formRes" class="hidden">
+          <div style="background:var(--bg3);border-radius:10px;padding:1.5rem;margin-bottom:1rem">
+            <div style="font-family:var(--font-display);font-size:1.1rem;text-align:center;margin-bottom:1rem;color:var(--gold)" id="pNombre"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+              <div>
+                <div style="font-size:.72rem;color:var(--text-dim);text-align:center;margin-bottom:.3rem" id="lLocal"></div>
+                <input type="number" id="gLocal" min="0" max="20" placeholder="0"
+                  style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem;color:var(--text);font-family:var(--font-display);font-size:2.2rem;text-align:center"/>
+              </div>
+              <div>
+                <div style="font-size:.72rem;color:var(--text-dim);text-align:center;margin-bottom:.3rem" id="lVisit"></div>
+                <input type="number" id="gVisit" min="0" max="20" placeholder="0"
+                  style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem;color:var(--text);font-family:var(--font-display);font-size:2.2rem;text-align:center"/>
+              </div>
+            </div>
+            <div id="secPenales" class="hidden">
+              <div style="border-top:1px solid var(--border);padding-top:1rem;margin-top:.5rem">
+                <div style="font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--cyan);margin-bottom:.8rem">⚡ PENALES</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                  <input type="number" id="penLocal" min="0" max="30" placeholder="0"
+                    style="background:var(--bg);border:1px solid rgba(0,212,255,.3);border-radius:8px;padding:.6rem;color:var(--cyan);font-family:var(--font-display);font-size:1.6rem;text-align:center"/>
+                  <input type="number" id="penVisit" min="0" max="30" placeholder="0"
+                    style="background:var(--bg);border:1px solid rgba(0,212,255,.3);border-radius:8px;padding:.6rem;color:var(--cyan);font-family:var(--font-display);font-size:1.6rem;text-align:center"/>
+                </div>
+                <p style="font-size:.72rem;color:var(--text-dim);margin-top:.5rem">El marcador de arriba es el resultado al finalizar prórroga (empate). Los penales determinan quién avanza.</p>
+              </div>
+            </div>
+            <div id="btnPenalesWrap" class="hidden mt1">
+              <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;color:var(--text-dim)">
+                <input type="checkbox" id="checkPenales" onchange="togglePenales()"/>
+                El partido se definió en penales
+              </label>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem;margin-bottom:1rem">
+            <div class="form-group" style="margin:0"><label>🟨 Amarillas</label><input type="number" id="fTarjAm" min="0" value="0"/></div>
+            <div class="form-group" style="margin:0"><label>🟥 Rojas</label><input type="number" id="fTarjRj" min="0" value="0"/></div>
+            <div class="form-group" style="margin:0"><label>🚩 Offsides</label><input type="number" id="fOffsides" min="0" value="0"/></div>
+          </div>
+          <div style="display:flex;gap:.8rem;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="guardarResultado()">✅ Guardar resultado</button>
+            <button class="btn btn-danger btn-sm" onclick="quitarResultado()">🗑 Quitar resultado</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ ESTADÍSTICAS CSV ════ -->
+      <div id="sec_stats" class="hidden">
+        <h2 style="font-family:var(--font-display);color:var(--gold);margin-bottom:1.2rem">📊 Subir Estadísticas</h2>
+        <div id="al_stats" class="mb1"></div>
+        <div class="alert alert-info mb2">
+          <strong>Formato CSV/TXT (una línea por equipo):</strong><br>
+          <code>team,goles_promedio,tarjetas_promedio,offsides_promedio,ranking_fifa</code><br><br>
+          Ejemplo:<br>
+          <code>Brasil,2.1,1.3,1.2,5</code><br>
+          <code>España,2.3,1.2,1.7,1</code>
+        </div>
+        <div class="upload-area" onclick="document.getElementById('csvFile').click()">
+          <div class="upload-icon">📁</div>
+          <div class="upload-text">Clic para seleccionar archivo CSV o TXT</div>
+          <div style="font-size:.75rem;color:var(--text-dim);margin-top:.3rem" id="csvNom">Ningún archivo</div>
+        </div>
+        <input type="file" id="csvFile" accept=".csv,.txt" style="display:none" onchange="previewCSV()"/>
+        <div id="prevCSV" class="hidden mt1">
+          <div class="group-header" style="margin-bottom:.5rem">VISTA PREVIA</div>
+          <div class="table-wrap"><table id="tblPrev"></table></div>
+          <button class="btn btn-success mt1" onclick="importarCSV()">⬆️ Importar a base de datos</button>
+        </div>
+      </div>
+
+      <!-- ════ EDITAR CLASIFICADOS ════ -->
+      <div id="sec_playoff" class="hidden">
+        <h2 style="font-family:var(--font-display);color:var(--gold);margin-bottom:.5rem">📝 Editar clasificados</h2>
+        <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.5rem">
+          Cuando ya se conozca la selección clasificada (ej: "UEFA Play-Off D" = "Eslovaquia"), escríbela aquí y guarda. El cambio queda en la base de datos definitivamente y se refleja en toda la plataforma.
+        </p>
+        <div id="al_playoff" class="mb1"></div>
+        <div id="listaEdicion"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
+        <button class="btn btn-primary mt2" onclick="guardarEdicion()">💾 Guardar cambios en BD</button>
+      </div>
+
+      <!-- ════ USUARIOS ════ -->
+      <div id="sec_users" class="hidden">
+        <h2 style="font-family:var(--font-display);color:var(--gold);margin-bottom:.5rem">👥 Usuarios</h2>
+        <div id="al_users" class="mb1"></div>
+
+        <!-- Modal edición -->
+        <div id="modalUser" class="hidden" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin-bottom:1.5rem;max-width:480px">
+          <h3 style="font-family:var(--font-display);color:var(--gold);margin-bottom:1rem" id="modalUserTitle">Editar usuario</h3>
+          <input type="hidden" id="editUserId"/>
+          <div class="form-group"><label>Nombre completo</label><input type="text" id="editNombre"/></div>
+          <div class="form-group"><label>Nombre de usuario (@)</label><input type="text" id="editUsername"/></div>
+          <div class="form-group">
+            <label>Nueva contraseña <small style="color:var(--text-dim)">(dejar vacío para no cambiar)</small></label>
+            <input type="password" id="editPass" placeholder="Nueva contraseña"/>
+          </div>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="guardarEdicionUser()">💾 Guardar</button>
+            <button class="btn btn-secondary" onclick="cerrarModalUser()">✕ Cancelar</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Nombre</th><th>Usuario</th><th>Email</th><th>Rol</th><th>Pts</th><th>Acciones</th></tr></thead>
+            <tbody id="tblUsers"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-dim)"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="../js/supabase.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/auth-ui.js"></script>
+  <script>
+    let _partidos = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!requiereAdmin()) return;
+      _partidos = await DB.getPartidos().catch(() => []);
+      invalidarCachePartidos();
+      cargarSelectPartidos();
+      cargarEdicion();
+      cargarUsuarios();
+    });
+
+    const TABS = ['res','stats','playoff','users'];
+    function tab(id) {
+      TABS.forEach(t => {
+        document.getElementById('sec_'+t).classList.toggle('hidden', t!==id);
+        document.getElementById('sb_'+t).classList.toggle('active', t===id);
+      });
+    }
+
+    // ── RESULTADOS ──
+    function cargarSelectPartidos() {
+      const sel = document.getElementById('selPartido');
+      sel.innerHTML = '<option value="">— Elige un partido —</option>';
+      _partidos.forEach(p => {
+        const localN  = resolverEquipo(p.local, _partidos);
+        const visitN  = resolverEquipo(p.visitante, _partidos);
+        const lbl = p.grupo
+          ? `Grupo ${p.grupo}: ${localN} vs ${visitN}`
+          : `[${p.fase}] P${p.num}: ${localN} vs ${visitN}`;
+        const ok = p.estado==='finalizado'?' ✅':'';
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.fecha} — ${lbl}${ok}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    let pActual = null;
+    function cargarFormRes() {
+      const id = parseInt(document.getElementById('selPartido').value);
+      const formEl = document.getElementById('formRes');
+      if (!id) { formEl.classList.add('hidden'); return; }
+      pActual = _partidos.find(x => x.id===id);
+      if (!pActual) return;
+      const localN  = resolverEquipo(pActual.local, _partidos);
+      const visitN  = resolverEquipo(pActual.visitante, _partidos);
+      document.getElementById('pNombre').textContent = `${localN}  ⚔️  ${visitN}`;
+      document.getElementById('lLocal').textContent  = localN;
+      document.getElementById('lVisit').textContent  = visitN;
+      document.getElementById('gLocal').value  = pActual.goles_local  ?? '';
+      document.getElementById('gVisit').value  = pActual.goles_visitante ?? '';
+      document.getElementById('fTarjAm').value  = pActual.tarj_am  || 0;
+      document.getElementById('fTarjRj').value  = pActual.tarj_rj  || 0;
+      document.getElementById('fOffsides').value = pActual.offsides || 0;
+      const puedePen = !!pActual.puede_ir_a_penales;
+      document.getElementById('btnPenalesWrap').classList.toggle('hidden', !puedePen);
+      document.getElementById('checkPenales').checked = !!pActual.tiene_penales;
+      if (pActual.tiene_penales) {
+        document.getElementById('penLocal').value  = pActual.penales_local  ?? '';
+        document.getElementById('penVisit').value  = pActual.penales_visitante ?? '';
+        document.getElementById('secPenales').classList.remove('hidden');
+      } else {
+        document.getElementById('secPenales').classList.add('hidden');
+      }
+      formEl.classList.remove('hidden');
+    }
+
+    function togglePenales() {
+      document.getElementById('secPenales').classList.toggle('hidden', !document.getElementById('checkPenales').checked);
+    }
+
+    async function guardarResultado() {
+      const ga = parseInt(document.getElementById('gLocal').value);
+      const gb = parseInt(document.getElementById('gVisit').value);
+      if (isNaN(ga) || isNaN(gb)) { mostrarError('al_res','Ingresa los goles de ambos equipos.'); return; }
+      const chkPen = document.getElementById('checkPenales').checked;
+      let penA = null, penB = null;
+      if (chkPen) {
+        penA = parseInt(document.getElementById('penLocal').value);
+        penB = parseInt(document.getElementById('penVisit').value);
+        if (isNaN(penA)||isNaN(penB)) { mostrarError('al_res','Ingresa los penales.'); return; }
+        if (ga !== gb) { mostrarError('al_res','Los penales solo aplican en empate al final de prórroga.'); return; }
+      }
+      try {
+        const update = {
+          estado:'finalizado',
+          goles_local:ga, goles_visitante:gb,
+          tarj_am:  parseInt(document.getElementById('fTarjAm').value)||0,
+          tarj_rj:  parseInt(document.getElementById('fTarjRj').value)||0,
+          offsides: parseInt(document.getElementById('fOffsides').value)||0,
+          tiene_penales:      chkPen,
+          penales_local:      chkPen?penA:null,
+          penales_visitante:  chkPen?penB:null,
+        };
+        await DB.updatePartido(pActual.id, update);
+        _partidos = await DB.getPartidos();
+        invalidarCachePartidos();
+        mostrarOk('al_res','✅ Resultado guardado. Puntos de quiniela actualizados automáticamente.');
+        cargarSelectPartidos();
+      } catch (e) { mostrarError('al_res','Error: '+JSON.stringify(e)); }
+    }
+
+    async function quitarResultado() {
+      if (!pActual||!confirm('¿Quitar el resultado?')) return;
+      try {
+        await DB.updatePartido(pActual.id, {
+          estado:'pendiente', goles_local:null, goles_visitante:null,
+          tiene_penales:false, penales_local:null, penales_visitante:null,
+        });
+        _partidos = await DB.getPartidos();
+        invalidarCachePartidos();
+        mostrarOk('al_res','Resultado eliminado.');
+        cargarSelectPartidos();
+        document.getElementById('formRes').classList.add('hidden');
+      } catch (e) { mostrarError('al_res','Error: '+JSON.stringify(e)); }
+    }
+
+    // ── CSV ──
+    let csvData = [];
+    function previewCSV() {
+      const file = document.getElementById('csvFile').files[0];
+      if (!file) return;
+      document.getElementById('csvNom').textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const lines = e.target.result.trim().split(/\r?\n/);
+        csvData = [];
+        let html = '<thead><tr>'+lines[0].split(',').map(h=>`<th>${h.trim()}</th>`).join('')+'</tr></thead><tbody>';
+        for (let i=1;i<lines.length;i++) {
+          const cols = lines[i].split(',');
+          if (cols.length<2) continue;
+          csvData.push(cols.map(c=>c.trim()));
+          html += '<tr>'+cols.map(c=>`<td>${c.trim()}</td>`).join('')+'</tr>';
+        }
+        document.getElementById('tblPrev').innerHTML = html+'</tbody>';
+        document.getElementById('prevCSV').classList.remove('hidden');
+      };
+      reader.readAsText(file);
+    }
+
+    async function importarCSV() {
+      const rows = csvData.filter(r=>r.length>=5).map(([equipo,goles,tarjetas,offsides,ranking])=>({
+        equipo, goles:parseFloat(goles)||1.2, tarjetas:parseFloat(tarjetas)||1.5,
+        offsides:parseFloat(offsides)||1.4, ranking:parseInt(ranking)||50,
+      }));
+      try {
+        await DB.upsertStatsBulk(rows);
+        invalidarCacheStats();
+        mostrarOk('al_stats',`✅ ${rows.length} equipos importados a la base de datos.`);
+      } catch (e) { mostrarError('al_stats','Error: '+JSON.stringify(e)); }
+    }
+
+    // ── EDITAR CLASIFICADOS ──
+    async function cargarEdicion() {
+      const con = document.getElementById('listaEdicion');
+      const editables = _partidos.filter(p =>
+        [p.local,p.visitante].some(t =>
+          t&&(t.includes('Play-Off')||t.includes('Fifa')||
+              t.startsWith('W')||t.startsWith('L')||/^[123][A-L]$/.test(t))));
+      if (!editables.length) { con.innerHTML='<p style="color:var(--text-dim)">No hay clasificados pendientes.</p>'; return; }
+      let html = '';
+      editables.forEach(p => {
+        const fase = p.grupo?`Grupo ${p.grupo}`:(p.fase||'');
+        html += `<div style="display:flex;align-items:center;gap:.8rem;padding:.7rem;background:var(--bg3);border-radius:8px;margin-bottom:.5rem;flex-wrap:wrap">
+          <span style="font-size:.7rem;color:var(--text-dim);min-width:55px">P${p.num}</span>
+          <span style="font-size:.7rem;color:var(--text-dim);min-width:90px">${fase}</span>
+          <input type="text" id="ed_l_${p.id}" value="${p.local}"
+            style="flex:1;min-width:130px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:.4rem .6rem;color:var(--text);font-size:.85rem"/>
+          <span style="color:var(--text-dim)">vs</span>
+          <input type="text" id="ed_v_${p.id}" value="${p.visitante}"
+            style="flex:1;min-width:130px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:.4rem .6rem;color:var(--text);font-size:.85rem"/>
+          <span style="font-size:.7rem;color:var(--text-dim)">${p.fecha}</span>
+        </div>`;
+      });
+      con.innerHTML = html;
+      con.dataset.ids = JSON.stringify(editables.map(p=>p.id));
+    }
+
+    async function guardarEdicion() {
+      const ids = JSON.parse(document.getElementById('listaEdicion').dataset.ids||'[]');
+      let ok = 0;
+      for (const id of ids) {
+        const l = document.getElementById(`ed_l_${id}`)?.value.trim();
+        const v = document.getElementById(`ed_v_${id}`)?.value.trim();
+        if (l && v) {
+          await DB.updatePartido(id, { local:l, visitante:v });
+          ok++;
+        }
+      }
+      _partidos = await DB.getPartidos();
+      invalidarCachePartidos();
+      mostrarOk('al_playoff',`✅ ${ok} partidos actualizados en la base de datos.`);
+      cargarSelectPartidos();
+    }
+
+    // ── USUARIOS CRUD ──
+    let _profiles = [];
+    async function cargarUsuarios() {
+      try {
+        const [profiles, lideres] = await Promise.all([DB.getProfiles(), DB.calcularLideres()]);
+        _profiles = profiles;
+        const tbody = document.getElementById('tblUsers');
+        tbody.innerHTML = '';
+        profiles.forEach((u,i) => {
+          const pts = lideres.find(x=>x.id===u.id)?.puntos || 0;
+          tbody.innerHTML += `<tr>
+            <td>${i+1}</td>
+            <td>${u.nombre}</td>
+            <td>@${u.username}</td>
+            <td style="font-size:.75rem;color:var(--text-dim)">${u.email||''}</td>
+            <td>${u.es_admin?'<span style="color:var(--gold)">🔑 Admin</span>':'👤 Usuario'}</td>
+            <td class="pts">${pts}</td>
+            <td>${!u.es_admin
+              ?`<button class="btn btn-secondary btn-sm" onclick="abrirEdUser('${u.id}')">✏️</button>
+                <button class="btn btn-danger btn-sm" onclick="elimUser('${u.id}','${u.nombre}')">🗑</button>`
+              :'—'}</td>
+          </tr>`;
+        });
+      } catch (e) { mostrarError('al_users','Error: '+e.message); }
+    }
+
+    function abrirEdUser(id) {
+      const u = _profiles.find(x=>x.id===id);
+      if (!u) return;
+      document.getElementById('editUserId').value   = id;
+      document.getElementById('editNombre').value   = u.nombre;
+      document.getElementById('editUsername').value = u.username;
+      document.getElementById('editPass').value     = '';
+      document.getElementById('modalUserTitle').textContent = `Editar: ${u.nombre}`;
+      document.getElementById('modalUser').classList.remove('hidden');
+      document.getElementById('modalUser').scrollIntoView({behavior:'smooth'});
+    }
+
+    function cerrarModalUser() { document.getElementById('modalUser').classList.add('hidden'); }
+
+    async function guardarEdicionUser() {
+      const id       = document.getElementById('editUserId').value;
+      const nombre   = document.getElementById('editNombre').value.trim();
+      const username = document.getElementById('editUsername').value.trim().toLowerCase();
+      const newPass  = document.getElementById('editPass').value;
+      if (!nombre||!username) { mostrarError('al_users','Nombre y usuario son obligatorios.'); return; }
+      if (newPass && newPass.length < 6) { mostrarError('al_users','Contraseña mínimo 6 caracteres.'); return; }
+      try {
+        await DB.updateProfile(id, { nombre, username });
+        // Si hay nueva contraseña, el admin debe resetearla via Supabase Dashboard
+        // (la API REST de Supabase no permite al admin cambiar la pass de otro usuario directamente sin service_role key)
+        if (newPass) {
+          mostrarOk('al_users','⚠️ Perfil actualizado. Para cambiar la contraseña de otro usuario, ve a Supabase Dashboard → Authentication → Users → Reset password.');
+        } else {
+          mostrarOk('al_users','✅ Usuario actualizado correctamente.');
+        }
+        cerrarModalUser();
+        cargarUsuarios();
+      } catch (e) { mostrarError('al_users','Error: '+JSON.stringify(e)); }
+    }
+
+    async function elimUser(id, nombre) {
+      if (!confirm(`¿Eliminar a ${nombre}? Se borrarán también sus predicciones.`)) return;
+      try {
+        await DB.deleteProfile(id);
+        mostrarOk('al_users',`Usuario ${nombre} eliminado.`);
+        cargarUsuarios();
+      } catch (e) { mostrarError('al_users','Error: '+JSON.stringify(e)); }
+    }
+  </script>
+</body>
+</html>
