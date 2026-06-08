@@ -9,7 +9,7 @@ const REPECHAJE_NOMBRES = {
   "UEFA Play-Off A": "Bosnia y Herzegovina",
   "UEFA Play-Off B": "Suecia",
   "UEFA Play-Off C": "Turquía",
-  "UEFA Play-Off D": "Chequia",
+  "UEFA Play-Off D": "Republica Checa",
   "Fifa Play-Off 1": "Rep. Dem. del Congo",
   "Fifa Play-Off 2": "Irak",
 };
