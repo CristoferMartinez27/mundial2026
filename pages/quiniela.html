@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiniela — Mundial 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/styles.css"/>
+  <style>
+    .sug-row{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
+    .sug-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .7rem;border-radius:20px;
+      background:var(--bg3);border:1px solid var(--border);font-size:.75rem;color:var(--text-dim);
+      cursor:pointer;transition:all .15s}
+    .sug-chip:hover{background:rgba(255,215,0,.12);border-color:rgba(255,215,0,.4);color:var(--text)}
+    .sug-chip .sc{font-family:var(--font-display);font-size:.85rem;color:var(--gold)}
+    .match-pred-row{padding:.9rem 1.2rem;border-bottom:1px solid var(--border)}
+    .inp-gol{width:52px;text-align:center;border-radius:6px;padding:.45rem .2rem;
+      font-family:var(--font-display);font-size:1.25rem;border:1px solid var(--border)}
+    .inp-gol:disabled{opacity:.5;background:var(--bg);border-color:transparent;color:var(--text-dim)}
+    .inp-gol:not(:disabled){background:var(--bg3);color:var(--text)}
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><span class="trophy">⚽</span><span class="brand-text">MUNDIAL <strong>2026</strong></span></div>
+    <div class="nav-links" id="navLinks">
+      <a href="../index.html">Inicio</a>
+      <a href="calendario.html">Partidos</a>
+      <a href="grupos.html">Grupos</a>
+      <a href="brackets.html">Bracket</a>
+      <a href="quiniela.html" class="active">Quiniela</a>
+      <a href="lideres.html">Líderes</a>
+      <div id="authArea"></div>
+    </div>
+    <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+  </nav>
+
+  <div class="page-header">
+    <h1>🎯 QUINIELA</h1>
+    <p>Predice los marcadores · Cierre: 9:30am hora Guatemala del día del partido</p>
+  </div>
+
+  <div class="page-content">
+    <div id="loginPrompt" class="hidden" style="text-align:center;padding:3rem">
+      <div style="font-size:3rem;margin-bottom:1rem">🔒</div>
+      <h3 style="font-family:var(--font-display);color:var(--gold);margin-bottom:.5rem">Inicia sesión para participar</h3>
+      <a href="login.html" class="btn btn-primary">Iniciar Sesión / Registrarse</a>
+    </div>
+
+    <div id="panelQ" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+        <div>
+          <h3 style="font-family:var(--font-display);font-size:1.3rem;color:var(--gold)" id="bienvenida"></h3>
+          <p style="color:var(--text-dim);font-size:.85rem" id="mispts">Cargando puntos...</p>
+        </div>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+          <button class="btn btn-primary" id="btnGuardar" onclick="guardarTodo()">💾 Guardar predicciones</button>
+          <a href="lideres.html" class="btn btn-secondary">🏅 Ver líderes</a>
+        </div>
+      </div>
+
+      <div id="alGuardado" class="mb1"></div>
+
+      <!-- Sistema de puntos -->
+      <div class="group-block mb2">
+        <div class="group-header">📊 SISTEMA DE PUNTOS</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;padding:.8rem">
+          <div class="pred-stat"><div class="val" style="color:var(--gold)">5 pts</div><div class="lbl">Marcador exacto</div></div>
+          <div class="pred-stat"><div class="val" style="color:var(--cyan)">3 pts</div><div class="lbl">Ganador + diferencia</div></div>
+          <div class="pred-stat"><div class="val" style="color:var(--green)">2 pts</div><div class="lbl">Solo ganador</div></div>
+          <div class="pred-stat"><div class="val" style="color:var(--text-dim)">1 pt</div><div class="lbl">Goles totales</div></div>
+        </div>
+        <div style="padding:.5rem 1rem;font-size:.78rem;color:var(--text-dim);border-top:1px solid var(--border)">
+          💡 En eliminatorias con penales: predice el marcador al final de la prórroga. El ganador = quién clasifica.
+        </div>
+      </div>
+
+      <div id="listaQ"><div style="text-align:center;padding:2rem;color:var(--text-dim)">Cargando partidos...</div></div>
+    </div>
+  </div>
+
+  <footer class="footer"><p>⚽ Quiniela Devel - Copa Mundial FIFA 2026 ⚽</p></footer>
+
+  <script src="../js/supabase.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/auth-ui.js"></script>
+  <script>
+    let userId = null;
+    let predsLocal = {};
+    let partidos = [];
+
+    async function init() {
+      const session = SBAuth.getSession();
+      const profile = JSON.parse(localStorage.getItem('user_profile') || 'null');
+      if (!session || !profile || profile.es_admin) {
+        document.getElementById('loginPrompt').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('panelQ').classList.remove('hidden');
+      userId = session.user.id;
+      document.getElementById('bienvenida').textContent = `👋 Hola, ${profile.nombre}`;
+
+      try {
+        [partidos, predsLocal] = await Promise.all([
+          DB.getPartidos(),
+          DB.getPredicciones(userId),
+        ]);
+        renderQ();
+        actuPts();
+      } catch (e) {
+        document.getElementById('listaQ').innerHTML = `<div class="alert alert-error">Error cargando datos: ${e.message||e}</div>`;
+      }
+    }
+
+    async function actuPts() {
+      try {
+        const lideres = await DB.calcularLideres();
+        const f = lideres.find(u => u.id === userId);
+        document.getElementById('mispts').textContent = `Tus puntos: ${f ? f.puntos : 0} pts 🏆`;
+      } catch {}
+    }
+
+    function renderQ() {
+      const gruposLetras = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+      let html = '';
+
+      gruposLetras.forEach(gr => {
+        const ps = partidos.filter(p => p.grupo === gr);
+        html += `<div class="group-block mb2"><div class="group-header">GRUPO ${gr}</div>`;
+        ps.forEach(p => { html += renderPartidoQ(p); });
+        html += `</div>`;
+      });
+
+      const fasesOrden = ['16avos','Octavos','Cuartos','Semifinales','3er Lugar','Final'];
+      fasesOrden.forEach(fase => {
+        const ps = partidos.filter(p => p.fase === fase);
+        if (!ps.length) return;
+        html += `<div class="group-block mb2"><div class="group-header">⚔️ ${fase.toUpperCase()}</div>`;
+        ps.forEach(p => { html += renderPartidoQ(p, true); });
+        html += `</div>`;
+      });
+
+      document.getElementById('listaQ').innerHTML = html;
+    }
+
+    function renderPartidoQ(p) {
+      const pred      = predsLocal[p.id] || {};
+      const finalizado = p.estado === 'finalizado';
+      const editable   = !finalizado && partidoEditable(p);
+      const ga = pred.golesLocal !== undefined ? pred.golesLocal : '';
+      const gb = pred.golesVisitante !== undefined ? pred.golesVisitante : '';
+      const pts = finalizado && ga !== '' ? calcularPuntos(pred, p) : null;
+      const pCols = {5:'var(--gold)',3:'var(--cyan)',2:'var(--green)',1:'var(--text-dim)',0:'var(--red)'};
+
+      const localN  = resolverEquipo(p.local, partidos);
+      const visitN  = resolverEquipo(p.visitante, partidos);
+      const esPlaceholder = [p.local, p.visitante].some(t =>
+        t.includes('Play-Off')||t.includes('Fifa')||/^[W123L][A-L0-9]/.test(t));
+
+      let sugHtml = '';
+      if (editable && !esPlaceholder) {
+        const S = _statsCache && Object.keys(_statsCache).length ? _statsCache : EQUIPOS_STATS_DEFAULT;
+        const A = S[localN] || S[resolverNombreEquipo(localN)] || {goles:1.2,tarjetas:1.5,offsides:1.4,ranking:50};
+        const B = S[visitN] || S[resolverNombreEquipo(visitN)] || {goles:1.2,tarjetas:1.5,offsides:1.4,ranking:50};
+        const f = r => r<=5?1.25:r<=15?1.12:r<=30?1.00:r<=50?0.88:0.78;
+        const gA = A.goles*f(A.ranking)*0.9, gB = B.goles*f(B.ranking)*0.9;
+        const mA = Math.round(gA), mB = Math.round(gB);
+        const nomL = localN.split(' ')[0], nomV = visitN.split(' ')[0];
+        const c1 = {a:mA, b:mB, label:'Más probable'};
+        const c2 = mA > mB ? {a:mA+1, b:mB, label:`Gana ${nomL}`} : {a:mB+1, b:mA, label:`Gana ${nomL}`};
+        const c3 = mB > mA ? {a:mA, b:mB+1, label:`Gana ${nomV}`} : {a:mA, b:mA+1, label:`Gana ${nomV}`};
+        const empateVal = Math.max(mA, mB);
+        const c4 = {a:empateVal, b:empateVal, label:'Empate'};
+        const sugs = [c1, c2, c3, c4];
+        sugHtml = `<div class="sug-row">
+          <span style="font-size:.68rem;color:var(--text-dim);align-self:center">💡</span>
+          ${sugs.map(s=>`<span class="sug-chip" onclick="usarSug(${p.id},${s.a},${s.b})">
+            <span class="sc">${s.a}–${s.b}</span><span style="font-size:.68rem">${s.label}</span>
+          </span>`).join('')}
+        </div>`;
+      }
+
+      const lockBadge = !editable && !finalizado
+        ? `<span class="lock-badge">🔒 CERRADO</span>`
+        : editable ? `<span class="open-badge">✏️ ${textoDeadline(p)}</span>` : '';
+
+      return `<div class="match-pred-row">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+          <span style="font-size:.72rem;color:var(--text-dim)">${p.fecha} · ${p.hora}</span>
+          ${lockBadge}
+          ${finalizado?'<span class="status-done badge-status" style="font-size:.65rem;padding:.1rem .4rem">Final</span>':''}
+          ${p.tiene_penales?'<span style="font-size:.65rem;color:var(--cyan)">⚡ Penales</span>':''}
+        </div>
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+          <span style="font-family:var(--font-display);font-size:1rem;flex:1;text-align:right;min-width:90px">${localN}</span>
+          <input type="number" min="0" max="20" id="ga_${p.id}" value="${ga}"
+            ${!editable?'disabled':''} class="inp-gol" onchange="updPred(${p.id})"/>
+          <span style="font-family:var(--font-display);color:var(--text-dim);font-size:1.1rem">–</span>
+          <input type="number" min="0" max="20" id="gb_${p.id}" value="${gb}"
+            ${!editable?'disabled':''} class="inp-gol" onchange="updPred(${p.id})"/>
+          <span style="font-family:var(--font-display);font-size:1rem;flex:1;min-width:90px">${visitN}</span>
+          <div style="min-width:100px;text-align:right;flex-shrink:0">
+            ${finalizado
+              ? `<div style="font-size:.75rem;color:var(--text-dim)">
+                   Real: <strong style="color:var(--text)">${p.goles_local}–${p.goles_visitante}${p.tiene_penales?` (P:${p.penales_local}–${p.penales_visitante})`:''}</strong>
+                 </div>
+                 ${pts!==null
+                   ?`<div style="font-family:var(--font-display);color:${pCols[pts]};font-size:1rem">+${pts} pts</div>`
+                   :'<div style="font-size:.7rem;color:var(--text-dim)">Sin pred.</div>'}`
+              : ''
+            }
+          </div>
+        </div>
+        ${sugHtml}
+      </div>`;
+    }
+
+    function usarSug(id, ga, gb) {
+      const a = document.getElementById(`ga_${id}`), b = document.getElementById(`gb_${id}`);
+      if (a && !a.disabled) {
+        a.value = ga; b.value = gb; updPred(id);
+        [a,b].forEach(el => { el.style.borderColor='var(--gold)'; setTimeout(()=>el.style.borderColor='',1200); });
+      }
+    }
+
+    function updPred(id) {
+      const a = document.getElementById(`ga_${id}`)?.value;
+      const b = document.getElementById(`gb_${id}`)?.value;
+      if (a !== '' && a !== undefined) {
+        predsLocal[id] = { golesLocal:parseInt(a), golesVisitante:parseInt(b) };
+      }
+    }
+
+    async function guardarTodo() {
+      const btn = document.getElementById('btnGuardar');
+      btn.disabled = true; btn.textContent = 'Guardando...';
+
+      const toSave = [];
+      partidos.forEach(p => {
+        const a = document.getElementById(`ga_${p.id}`);
+        const b = document.getElementById(`gb_${p.id}`);
+        if (a && b && a.value !== '' && b.value !== '') {
+          toSave.push({ partido_id: p.id, goles_local: parseInt(a.value), goles_visitante: parseInt(b.value) });
+          predsLocal[p.id] = { golesLocal: parseInt(a.value), golesVisitante: parseInt(b.value) };
+        }
+      });
+
+      try {
+        await DB.upsertPrediccionesBulk(userId, toSave);
+        mostrarOk('alGuardado', `✅ ${toSave.length} predicciones guardadas correctamente.`);
+        actuPts();
+      } catch (e) {
+        mostrarError('alGuardado', `Error al guardar: ${e.message || JSON.stringify(e)}`);
+      }
+      btn.disabled = false; btn.textContent = '💾 Guardar predicciones';
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const fromDB = await DB.getStats();
+        _statsCache = { ...EQUIPOS_STATS_DEFAULT, ...fromDB };
+      } catch {
+        _statsCache = { ...EQUIPOS_STATS_DEFAULT };
+      }
+      init();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mundial 2026 — Quiniela</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand"><span class="trophy">⚽</span><span class="brand-text">MUNDIAL <strong>2026</strong></span></div>
+    <div class="nav-links" id="navLinks">
+      <a href="index.html" class="active">Inicio</a>
+      <a href="pages/calendario.html">Partidos</a>
+      <a href="pages/grupos.html">Grupos</a>
+      <a href="pages/brackets.html">Bracket</a>
+      <a href="pages/quiniela.html">Quiniela</a>
+      <a href="pages/lideres.html">Líderes</a>
+      <div id="authArea"><a href="pages/login.html" class="btn-nav">Entrar</a></div>
+    </div>
+    <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <p class="hero-label">FIFA WORLD CUP</p>
+      <h1 class="hero-title">MUNDIAL<br/><span>2026</span></h1>
+      <p class="hero-sub">🇺🇸 USA &nbsp;·&nbsp; 🇨🇦 CANADÁ &nbsp;·&nbsp; 🇲🇽 MÉXICO</p>
+      <div class="hero-stats-bar">
+        <div class="stat-pill"><span class="stat-n">48</span><span class="stat-l">Selecciones</span></div>
+        <div class="stat-pill"><span class="stat-n">104</span><span class="stat-l">Partidos</span></div>
+        <div class="stat-pill"><span class="stat-n">12</span><span class="stat-l">Grupos</span></div>
+        <div class="stat-pill"><span class="stat-n">11 Jun</span><span class="stat-l">Inicio</span></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="quick-actions">
+    <div class="qa-grid">
+      <a href="pages/quiniela.html" class="qa-card qa-primary">
+        <div class="qa-icon">🎯</div>
+        <div class="qa-text"><div class="qa-title">MI QUINIELA</div><div class="qa-sub">Ingresa tus predicciones</div></div>
+        <span class="qa-arrow">→</span>
+      </a>
+      <a href="pages/lideres.html" class="qa-card qa-gold">
+        <div class="qa-icon">🏅</div>
+        <div class="qa-text"><div class="qa-title">TABLA DE LÍDERES</div><div class="qa-sub">¿Quién va ganando?</div></div>
+        <span class="qa-arrow">→</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="main-menu">
+    <h2 class="section-title"><span>⚡</span> Explorar</h2>
+    <div class="menu-grid">
+      <a href="pages/calendario.html" class="menu-card" style="--accent:#00d4ff">
+        <div class="card-icon">📅</div><h3>Calendario</h3>
+        <p>Todos los partidos con fechas, horarios y predicciones estadísticas</p>
+        <span class="card-arrow">→</span>
+      </a>
+      <a href="pages/grupos.html" class="menu-card" style="--accent:#00ff88">
+        <div class="card-icon">🏆</div><h3>Tabla de Grupos</h3>
+        <p>Clasificación actualizada de los 12 grupos del mundial</p>
+        <span class="card-arrow">→</span>
+      </a>
+      <a href="pages/brackets.html" class="menu-card" style="--accent:#ff6b35">
+        <div class="card-icon">⚔️</div><h3>Bracket Eliminatorio</h3>
+        <p>Ronda de 32, Octavos, Cuartos, Semis y Gran Final</p>
+        <span class="card-arrow">→</span>
+      </a>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>⚽ Quiniela Devel - Copa Mundial FIFA 2026 ⚽</p>
+  </footer>
+
+  <script src="js/supabase.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const area = document.getElementById('authArea');
+      const session = SBAuth.getSession();
+      const profile = JSON.parse(localStorage.getItem('user_profile') || 'null');
+      if (session && profile) {
+        area.innerHTML = `
+          <span style="color:var(--text-dim);font-size:.8rem;margin-right:.5rem">
+            ${profile.es_admin ? '🔑' : '👤'} ${profile.nombre}
+          </span>
+          ${profile.es_admin ? '<a href="pages/admin.html" class="btn-nav" style="margin-right:.4rem">Admin</a>' : ''}
+          <button onclick="SBAuth.logout()" style="background:#c0392b;border:1px solid #e74c3c;color:#fff;font-weight:700;padding:.35rem .8rem;border-radius:5px;cursor:pointer;font-size:.82rem">🚪 Salir</button>
+        `;
+      }
+    });
+  </script>
+</body>
+</html>
