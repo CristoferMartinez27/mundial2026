@@ -28,7 +28,7 @@ const EQUIPOS_STATS_DEFAULT = {
   "Cabo Verde":              { goles:0.9, tarjetas:2.4, offsides:1.8, ranking:67 },
   "Canadá":                  { goles:1.8, tarjetas:2.0, offsides:3.5, ranking:29 },
   "Catar":                   { goles:1.0, tarjetas:2.2, offsides:1.8, ranking:56 },
-  "Chequia":                 { goles:1.4, tarjetas:2.1, offsides:2.8, ranking:43 },
+  "Republica Checa":         { goles:1.4, tarjetas:2.1, offsides:2.8, ranking:43 },
   "Colombia":                { goles:1.5, tarjetas:2.3, offsides:3.2, ranking:14 },
   "Corea del Sur":           { goles:1.5, tarjetas:2.0, offsides:2.8, ranking:49 },
   "Costa de Marfil":         { goles:1.6, tarjetas:2.4, offsides:2.5, ranking:64 },
@@ -100,7 +100,7 @@ function invalidarCacheStats()    { _statsCache = null; }
 // ── GRUPOS ─────────────────────────────────────────────────
 // Usamos los nombres reales de repechaje directamente en los grupos
 const GRUPOS = {
-  A: ["México","Sudáfrica","Corea del Sur","Chequia"],
+  A: ["México","Sudáfrica","Corea del Sur","Republica Checa"],
   B: ["Canadá","Catar","Suiza","Bosnia y Herzegovina"],
   C: ["Brasil","Marruecos","Haití","Escocia"],
   D: ["EEUU","Paraguay","Australia","Turquía"],
