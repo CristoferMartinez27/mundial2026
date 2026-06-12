@@ -130,13 +130,39 @@ const FECHA_ISO = {
   "Dom 19 Jul":"2026-07-19",
 };
 
+// Guatemala = UTC-6. Convierte la hora local del partido a UTC y resta 30 minutos.
+function _deadlineUTC(p) {
+  const iso = FECHA_ISO[p.fecha];
+  if (!iso || !p.hora) return null;
+  const [hh, mm] = p.hora.split(':').map(Number);
+  // hora local Guatemala → UTC: sumar 6 horas
+  const totalMinutosUTC = hh * 60 + mm + 6 * 60 - 30; // -30 min antes del partido
+  const diaExtra = Math.floor(totalMinutosUTC / (24 * 60));
+  const minutosDia = ((totalMinutosUTC % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hhUTC = String(Math.floor(minutosDia / 60)).padStart(2, '0');
+  const mmUTC = String(minutosDia % 60).padStart(2, '0');
+  // Si pasa medianoche UTC, avanzar el día
+  const fechaBase = new Date(iso + 'T00:00:00Z');
+  fechaBase.setUTCDate(fechaBase.getUTCDate() + diaExtra);
+  const isoFinal = fechaBase.toISOString().slice(0, 10);
+  return new Date(`${isoFinal}T${hhUTC}:${mmUTC}:00Z`);
+}
+
 function partidoEditable(p) {
   if (p.estado === 'finalizado') return false;
-  const iso = FECHA_ISO[p.fecha];
-  if (!iso) return true;
-  return new Date() < new Date(iso + 'T15:30:00Z'); // 9:30am Guatemala = 15:30 UTC
+  const deadline = _deadlineUTC(p);
+  if (!deadline) return true;
+  return new Date() < deadline;
 }
-function textoDeadline(p) { return `Cierra ${p.fecha} 9:30am`; }
+
+function textoDeadline(p) {
+  if (!p.hora) return `Cierra ${p.fecha}`;
+  const [hh, mm] = p.hora.split(':').map(Number);
+  const totalMin = hh * 60 + mm - 30;
+  const h = Math.floor(((totalMin % (24*60)) + 24*60) % (24*60) / 60);
+  const m = String(((totalMin % 60) + 60) % 60).padStart(2, '0');
+  return `Cierra ${p.fecha} ${h}:${m}`;
+}
 
 // ── RESOLUCIÓN DE NOMBRE DE EQUIPO ────────────────────────
 // Resuelve el placeholder al nombre real usando el mapa REPECHAJE_NOMBRES
