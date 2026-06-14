@@ -184,33 +184,33 @@
         ? `<span class="lock-badge">🔒 CERRADO</span>`
         : editable ? `<span class="open-badge">✏️ ${textoDeadline(p)}</span>` : '';
 
+      const resultadoHtml = finalizado ? `
+        <div style="display:flex;justify-content:center;align-items:center;gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
+          <span style="font-size:.75rem;color:var(--text-dim)">Real: <strong style="color:var(--text)">${p.goles_local}–${p.goles_visitante}${p.tiene_penales?' (P:'+p.penales_local+'–'+p.penales_visitante+')':''}</strong></span>
+          ${pts!==null
+            ?`<span style="font-family:var(--font-display);color:${pCols[pts]};font-size:1.1rem;font-weight:700">+${pts} pts</span>`
+            :'<span style="font-size:.7rem;color:var(--text-dim)">Sin pred.</span>'}
+        </div>` : '';
+
       return `<div class="match-pred-row">
-        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+        <!-- fecha + badge -->
+        <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.6rem">
           <span style="font-size:.72rem;color:var(--text-dim)">${p.fecha} · ${p.hora}</span>
           ${lockBadge}
           ${finalizado?'<span class="status-done badge-status" style="font-size:.65rem;padding:.1rem .4rem">Final</span>':''}
           ${p.tiene_penales?'<span style="font-size:.65rem;color:var(--cyan)">⚡ Penales</span>':''}
         </div>
-        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
-          <span style="font-family:var(--font-display);font-size:1rem;flex:1;text-align:right;min-width:90px">${localN}</span>
+        <!-- grid: nombre | input | – | input | nombre -->
+        <div style="display:grid;grid-template-columns:1fr 48px 16px 48px 1fr;align-items:center;gap:.25rem">
+          <span style="font-family:var(--font-display);font-size:.9rem;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:.2rem">${localN}</span>
           <input type="number" min="0" max="20" id="ga_${p.id}" value="${ga}"
             ${!editable?'disabled':''} class="inp-gol" onchange="updPred(${p.id})"/>
-          <span style="font-family:var(--font-display);color:var(--text-dim);font-size:1.1rem">–</span>
+          <span style="font-family:var(--font-display);color:var(--text-dim);font-size:1rem;text-align:center">–</span>
           <input type="number" min="0" max="20" id="gb_${p.id}" value="${gb}"
             ${!editable?'disabled':''} class="inp-gol" onchange="updPred(${p.id})"/>
-          <span style="font-family:var(--font-display);font-size:1rem;flex:1;min-width:90px">${visitN}</span>
-          <div style="min-width:100px;text-align:right;flex-shrink:0">
-            ${finalizado
-              ? `<div style="font-size:.75rem;color:var(--text-dim)">
-                   Real: <strong style="color:var(--text)">${p.goles_local}–${p.goles_visitante}${p.tiene_penales?` (P:${p.penales_local}–${p.penales_visitante})`:''}</strong>
-                 </div>
-                 ${pts!==null
-                   ?`<div style="font-family:var(--font-display);color:${pCols[pts]};font-size:1rem">+${pts} pts</div>`
-                   :'<div style="font-size:.7rem;color:var(--text-dim)">Sin pred.</div>'}`
-              : ''
-            }
-          </div>
+          <span style="font-family:var(--font-display);font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:.2rem">${visitN}</span>
         </div>
+        ${resultadoHtml}
         ${sugHtml}
       </div>`;
     }
