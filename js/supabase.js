@@ -25,20 +25,33 @@ const SB = {
     return h;
   },
 
+  // Ejecuta un fetch y si recibe 401 (JWT expirado), refresca el token y reintenta una vez
+  async _fetch(url, options = {}) {
+    let res = await fetch(url, { ...options, headers: { ...this.headers(), ...(options.headers||{}) } });
+    if (res.status === 401) {
+      // Token expirado en el servidor — refrescar silenciosamente
+      const refreshed = await SBAuth.refreshSession();
+      if (!refreshed) {
+        // Refresh también muerto — mandar al login
+        window.location.href = getBasePath() + 'pages/login.html';
+        throw new Error('Sesión expirada');
+      }
+      // Reintentar con el nuevo token
+      res = await fetch(url, { ...options, headers: { ...this.headers(), ...(options.headers||{}) } });
+    }
+    return res;
+  },
+
   async get(table, query = '') {
-    await SBAuth.ensureSession();
-    const res = await fetch(`${this.url}/rest/v1/${table}${query}`, {
-      headers: this.headers(),
-    });
+    const res = await this._fetch(`${this.url}/rest/v1/${table}${query}`);
     if (!res.ok) throw await res.json();
     return res.json();
   },
 
   async post(table, body) {
-    await SBAuth.ensureSession();
-    const res = await fetch(`${this.url}/rest/v1/${table}`, {
+    const res = await this._fetch(`${this.url}/rest/v1/${table}`, {
       method: 'POST',
-      headers: { ...this.headers(), 'Prefer': 'return=representation' },
+      headers: { 'Prefer': 'return=representation' },
       body: JSON.stringify(body),
     });
     if (!res.ok) throw await res.json();
@@ -46,10 +59,9 @@ const SB = {
   },
 
   async patch(table, query, body) {
-    await SBAuth.ensureSession();
-    const res = await fetch(`${this.url}/rest/v1/${table}${query}`, {
+    const res = await this._fetch(`${this.url}/rest/v1/${table}${query}`, {
       method: 'PATCH',
-      headers: { ...this.headers(), 'Prefer': 'return=representation' },
+      headers: { 'Prefer': 'return=representation' },
       body: JSON.stringify(body),
     });
     if (!res.ok) throw await res.json();
@@ -57,10 +69,8 @@ const SB = {
   },
 
   async delete(table, query) {
-    await SBAuth.ensureSession();
-    const res = await fetch(`${this.url}/rest/v1/${table}${query}`, {
+    const res = await this._fetch(`${this.url}/rest/v1/${table}${query}`, {
       method: 'DELETE',
-      headers: this.headers(),
     });
     if (!res.ok) throw await res.json();
     return true;
@@ -204,12 +214,11 @@ const SBAuth = {
     }
   },
 
-  // Llama esto antes de cualquier operación que requiera auth
+  // Intenta refrescar el token si está por expirar (llamado proactivamente al cargar)
   async ensureSession() {
     if (this.isExpired()) {
       const refreshed = await this.refreshSession();
       if (!refreshed) {
-        // Sesión muerta — redirigir al login
         window.location.href = getBasePath() + 'pages/login.html';
         return false;
       }
@@ -379,4 +388,3 @@ function calcularPuntosRaw(pred, partido) {
 function getBasePath() {
   return window.location.pathname.includes('/pages/') ? '../' : '';
 }
-

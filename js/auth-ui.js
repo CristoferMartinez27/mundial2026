@@ -48,4 +48,12 @@ function requiereAdmin() {
   return true;
 }
 
-document.addEventListener('DOMContentLoaded', renderAuthArea);
+document.addEventListener('DOMContentLoaded', async () => {
+  // Refrescar token silenciosamente al cargar la página,
+  // antes de que cualquier llamada a la BD falle con JWT expired
+  const session = SBAuth.getSession();
+  if (session) {
+    await SBAuth.ensureSession();
+  }
+  renderAuthArea();
+});
