@@ -101,6 +101,8 @@
       document.getElementById('bienvenida').textContent = `👋 Hola, ${profile.nombre}`;
 
       try {
+        // Siempre invalidar caché al abrir la quiniela para tener datos frescos
+        invalidarCachePartidos();
         [partidos, predsLocal] = await Promise.all([
           DB.getPartidos(),
           DB.getPredicciones(userId),
@@ -114,9 +116,14 @@
 
     async function actuPts() {
       try {
+        // calcularLideres ya trae partidos frescos internamente
         const lideres = await DB.calcularLideres();
         const f = lideres.find(u => u.id === userId);
+        // Sincronizar partidos locales con los datos frescos que trajo calcularLideres
+        if (_partidosCache) partidos = _partidosCache;
         document.getElementById('mispts').textContent = `Tus puntos: ${f ? f.puntos : 0} pts 🏆`;
+        // Re-renderizar con datos actualizados
+        renderQ();
       } catch {}
     }
 

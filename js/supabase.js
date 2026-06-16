@@ -26,6 +26,7 @@ const SB = {
   },
 
   async get(table, query = '') {
+    await SBAuth.ensureSession();
     const res = await fetch(`${this.url}/rest/v1/${table}${query}`, {
       headers: this.headers(),
     });
@@ -34,6 +35,7 @@ const SB = {
   },
 
   async post(table, body) {
+    await SBAuth.ensureSession();
     const res = await fetch(`${this.url}/rest/v1/${table}`, {
       method: 'POST',
       headers: { ...this.headers(), 'Prefer': 'return=representation' },
@@ -44,6 +46,7 @@ const SB = {
   },
 
   async patch(table, query, body) {
+    await SBAuth.ensureSession();
     const res = await fetch(`${this.url}/rest/v1/${table}${query}`, {
       method: 'PATCH',
       headers: { ...this.headers(), 'Prefer': 'return=representation' },
@@ -54,6 +57,7 @@ const SB = {
   },
 
   async delete(table, query) {
+    await SBAuth.ensureSession();
     const res = await fetch(`${this.url}/rest/v1/${table}${query}`, {
       method: 'DELETE',
       headers: this.headers(),
@@ -162,6 +166,55 @@ const SBAuth = {
   isAdmin() {
     const profile = JSON.parse(localStorage.getItem('user_profile') || 'null');
     return profile?.es_admin === true;
+  },
+
+  // Refresca el access_token usando el refresh_token guardado
+  async refreshSession() {
+    const session = this.getSession();
+    if (!session?.refresh_token) return null;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+        body: JSON.stringify({ refresh_token: session.refresh_token }),
+      });
+      if (!res.ok) {
+        // Refresh también expiró — cerrar sesión limpiamente
+        this.clearSession();
+        localStorage.removeItem('user_profile');
+        return null;
+      }
+      const data = await res.json();
+      this.setSession(data);
+      return data;
+    } catch {
+      return null;
+    }
+  },
+
+  // Verifica si el access_token está expirado (con 60s de margen)
+  isExpired() {
+    const session = this.getSession();
+    if (!session?.access_token) return true;
+    try {
+      const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+      return (payload.exp - 60) < (Date.now() / 1000);
+    } catch {
+      return true;
+    }
+  },
+
+  // Llama esto antes de cualquier operación que requiera auth
+  async ensureSession() {
+    if (this.isExpired()) {
+      const refreshed = await this.refreshSession();
+      if (!refreshed) {
+        // Sesión muerta — redirigir al login
+        window.location.href = getBasePath() + 'pages/login.html';
+        return false;
+      }
+    }
+    return true;
   },
 };
 
@@ -276,18 +329,22 @@ const DB = {
   },
 
   // ── TABLA DE LÍDERES (calculada en cliente) ──
+  // Siempre trae partidos frescos de BD para evitar puntos incorrectos por caché.
   async calcularLideres() {
-    const [partidos, predicciones, profiles] = await Promise.all([
-      DB.getPartidos(),
+    const [partidosFrescos, predicciones, profiles] = await Promise.all([
+      SB.get('partidos', '?select=*&order=id.asc'),
       SB.get('predicciones', '?select=*'),
       DB.getProfiles(),
     ]);
+
+    // Actualizar caché con los datos frescos
+    _partidosCache = partidosFrescos;
 
     return profiles.filter(p => !p.es_admin).map(p => {
       const misPreds = predicciones.filter(x => x.user_id === p.id);
       let total = 0;
       misPreds.forEach(pred => {
-        const partido = partidos.find(x => x.id === pred.partido_id);
+        const partido = partidosFrescos.find(x => x.id === pred.partido_id);
         if (!partido || partido.estado !== 'finalizado') return;
         const pts = calcularPuntosRaw(
           { golesLocal: pred.goles_local, golesVisitante: pred.goles_visitante }, partido
@@ -322,3 +379,4 @@ function calcularPuntosRaw(pred, partido) {
 function getBasePath() {
   return window.location.pathname.includes('/pages/') ? '../' : '';
 }
+
