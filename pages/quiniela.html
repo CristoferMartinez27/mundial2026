@@ -101,30 +101,39 @@
       document.getElementById('bienvenida').textContent = `👋 Hola, ${profile.nombre}`;
 
       try {
-        // Siempre invalidar caché al abrir la quiniela para tener datos frescos
+        // Traer TODO directo de BD sin caché para garantizar consistencia
         invalidarCachePartidos();
-        [partidos, predsLocal] = await Promise.all([
-          DB.getPartidos(),
+        const [partidosFrescos, predsDB] = await Promise.all([
+          SB.get('partidos', '?select=*&order=id.asc'),
           DB.getPredicciones(userId),
         ]);
+        partidos = partidosFrescos;
+        _partidosCache = partidosFrescos;
+        predsLocal = predsDB;
         renderQ();
-        actuPts();
+        calcularYMostrarPuntos();
       } catch (e) {
         document.getElementById('listaQ').innerHTML = `<div class="alert alert-error">Error cargando datos: ${e.message||e}</div>`;
       }
     }
 
+    // Calcula puntos localmente usando los mismos partidos y predicciones ya cargados
+    // Evita una segunda llamada a BD que podría traer datos distintos
+    function calcularYMostrarPuntos() {
+      let total = 0;
+      partidos.forEach(p => {
+        if (p.estado !== 'finalizado') return;
+        const pred = predsLocal[p.id];
+        if (!pred || pred.golesLocal === undefined || pred.golesLocal === null) return;
+        const pts = calcularPuntosRaw(pred, p);
+        total += pts || 0;
+      });
+      document.getElementById('mispts').textContent = `Tus puntos: ${total} pts 🏆`;
+    }
+
+    // Mantener actuPts para compatibilidad pero usando cálculo local
     async function actuPts() {
-      try {
-        // calcularLideres ya trae partidos frescos internamente
-        const lideres = await DB.calcularLideres();
-        const f = lideres.find(u => u.id === userId);
-        // Sincronizar partidos locales con los datos frescos que trajo calcularLideres
-        if (_partidosCache) partidos = _partidosCache;
-        document.getElementById('mispts').textContent = `Tus puntos: ${f ? f.puntos : 0} pts 🏆`;
-        // Re-renderizar con datos actualizados
-        renderQ();
-      } catch {}
+      calcularYMostrarPuntos();
     }
 
     function renderQ() {
@@ -242,20 +251,25 @@
       const btn = document.getElementById('btnGuardar');
       btn.disabled = true; btn.textContent = 'Guardando...';
 
+      // Recoger todos los valores de los inputs y actualizar predsLocal
       const toSave = [];
       partidos.forEach(p => {
         const a = document.getElementById(`ga_${p.id}`);
         const b = document.getElementById(`gb_${p.id}`);
         if (a && b && a.value !== '' && b.value !== '') {
-          toSave.push({ partido_id: p.id, goles_local: parseInt(a.value), goles_visitante: parseInt(b.value) });
-          predsLocal[p.id] = { golesLocal: parseInt(a.value), golesVisitante: parseInt(b.value) };
+          const gl = parseInt(a.value);
+          const gv = parseInt(b.value);
+          toSave.push({ partido_id: p.id, goles_local: gl, goles_visitante: gv });
+          // Actualizar caché local con los valores actuales del usuario
+          predsLocal[p.id] = { golesLocal: gl, golesVisitante: gv };
         }
       });
 
       try {
         await DB.upsertPrediccionesBulk(userId, toSave);
         mostrarOk('alGuardado', `✅ ${toSave.length} predicciones guardadas correctamente.`);
-        actuPts();
+        // Recalcular puntos usando los datos ya en memoria — sin nueva llamada a BD
+        calcularYMostrarPuntos();
       } catch (e) {
         mostrarError('alGuardado', `Error al guardar: ${e.message || JSON.stringify(e)}`);
       }
