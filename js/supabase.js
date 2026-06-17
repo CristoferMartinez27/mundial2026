@@ -338,19 +338,19 @@ const DB = {
   },
 
   // ── TABLA DE LÍDERES (calculada en cliente) ──
-  // Siempre trae partidos frescos de BD para evitar puntos incorrectos por caché.
   async calcularLideres() {
-    const [partidosFrescos, predicciones, profiles] = await Promise.all([
+    // Traer predicciones sin límite de filas (Supabase por defecto corta a 1000)
+    const todasLasPredicciones = await this._getAllPredicciones();
+
+    const [partidosFrescos, profiles] = await Promise.all([
       SB.get('partidos', '?select=*&order=id.asc'),
-      SB.get('predicciones', '?select=*'),
       DB.getProfiles(),
     ]);
 
-    // Actualizar caché con los datos frescos
     _partidosCache = partidosFrescos;
 
     return profiles.filter(p => !p.es_admin).map(p => {
-      const misPreds = predicciones.filter(x => x.user_id === p.id);
+      const misPreds = todasLasPredicciones.filter(x => x.user_id === p.id);
       let total = 0;
       misPreds.forEach(pred => {
         const partido = partidosFrescos.find(x => x.id === pred.partido_id);
@@ -362,6 +362,25 @@ const DB = {
       });
       return { ...p, puntos: total };
     }).sort((a, b) => b.puntos - a.puntos);
+  },
+
+  // Trae TODAS las predicciones paginando de 1000 en 1000
+  async _getAllPredicciones() {
+    const pageSize = 1000;
+    let todas = [];
+    let offset = 0;
+    while (true) {
+      const res = await fetch(
+        `${SB.url}/rest/v1/predicciones?select=*&order=id.asc&limit=${pageSize}&offset=${offset}`,
+        { headers: { ...SB.headers(), 'Prefer': 'count=none' } }
+      );
+      if (!res.ok) throw await res.json();
+      const page = await res.json();
+      todas = todas.concat(page);
+      if (page.length < pageSize) break; // última página
+      offset += pageSize;
+    }
+    return todas;
   },
 };
 
