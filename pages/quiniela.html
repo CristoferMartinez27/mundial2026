@@ -54,9 +54,13 @@
           <p style="color:var(--text-dim);font-size:.85rem" id="mispts">Cargando puntos...</p>
         </div>
         <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-          <button class="btn btn-primary" id="btnGuardar" onclick="guardarTodo()">💾 Guardar predicciones</button>
+          <button class="btn btn-primary" id="btnGuardar" onclick="guardarTodo()" disabled style="opacity:.5;cursor:not-allowed">💾 Guardar predicciones</button>
           <a href="lideres.html" class="btn btn-secondary">🏅 Ver líderes</a>
         </div>
+      </div>
+
+      <div class="alert alert-error mb1">
+        ⚠️ <strong>Mantenimiento temporal:</strong> el guardado de predicciones está desactivado mientras corregimos un problema técnico. Tus predicciones guardadas anteriormente siguen seguras. Volverá pronto.
       </div>
 
       <div id="alGuardado" class="mb1"></div>
@@ -268,10 +272,26 @@
       try {
         await DB.upsertPrediccionesBulk(userId, toSave);
         mostrarOk('alGuardado', `✅ ${toSave.length} predicciones guardadas correctamente.`);
-        // Recalcular puntos usando los datos ya en memoria — sin nueva llamada a BD
         calcularYMostrarPuntos();
       } catch (e) {
-        mostrarError('alGuardado', `Error al guardar: ${e.message || JSON.stringify(e)}`);
+        // Si algunas predicciones fueron bloqueadas por partido ya cerrado,
+        // las demás SÍ se guardaron (el fix ya no borra antes de insertar).
+        if (e.bloqueadas && e.bloqueadas.length) {
+          const nombresPartidos = e.bloqueadas.map(b => {
+            const p = partidos.find(x => x.id === b.partido_id);
+            return p ? `${p.local} vs ${p.visitante}` : `Partido ${b.partido_id}`;
+          }).join(', ');
+          mostrarError('alGuardado',
+            `⚠️ ${e.guardadas} predicción(es) guardadas correctamente. ` +
+            `${e.bloqueadas.length} no se pudieron guardar porque ya cerraron: ${nombresPartidos}`
+          );
+          // Recargar predicciones reales desde BD para reflejar el estado correcto
+          predsLocal = await DB.getPredicciones(userId);
+          renderQ();
+          calcularYMostrarPuntos();
+        } else {
+          mostrarError('alGuardado', `Error al guardar: ${e.message || JSON.stringify(e)}`);
+        }
       }
       btn.disabled = false; btn.textContent = '💾 Guardar predicciones';
     }
