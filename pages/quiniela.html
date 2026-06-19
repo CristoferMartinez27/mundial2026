@@ -251,27 +251,42 @@
       const btn = document.getElementById('btnGuardar');
       btn.disabled = true; btn.textContent = 'Guardando...';
 
-      // Recoger todos los valores de los inputs y actualizar predsLocal
+      // CRÍTICO: solo recolectar partidos que el usuario REALMENTE puede
+      // modificar (input habilitado = editable = partido abierto).
+      // Nunca reenviar partidos finalizados/cerrados — eso es lo que
+      // rompía la política RLS de UPDATE y disparaba el error de constraint.
       const toSave = [];
+      let omitidos = 0;
       partidos.forEach(p => {
         const a = document.getElementById(`ga_${p.id}`);
         const b = document.getElementById(`gb_${p.id}`);
-        if (a && b && a.value !== '' && b.value !== '') {
+        if (!a || !b) return;
+        if (a.disabled || b.disabled) {
+          // Partido ya cerrado/finalizado — NO se reenvía, se omite silenciosamente
+          if (a.value !== '') omitidos++;
+          return;
+        }
+        if (a.value !== '' && b.value !== '') {
           const gl = parseInt(a.value);
           const gv = parseInt(b.value);
           toSave.push({ partido_id: p.id, goles_local: gl, goles_visitante: gv });
-          // Actualizar caché local con los valores actuales del usuario
           predsLocal[p.id] = { golesLocal: gl, golesVisitante: gv };
         }
       });
 
+      if (!toSave.length) {
+        mostrarError('alGuardado', 'No hay predicciones nuevas o editables para guardar.');
+        btn.disabled = false; btn.textContent = '💾 Guardar predicciones';
+        return;
+      }
+
       try {
         await DB.upsertPrediccionesBulk(userId, toSave);
-        mostrarOk('alGuardado', `✅ ${toSave.length} predicciones guardadas correctamente.`);
+        let msg = `✅ ${toSave.length} predicción(es) guardadas correctamente.`;
+        if (omitidos > 0) msg += ` (${omitidos} partido(s) ya cerrados no se modificaron).`;
+        mostrarOk('alGuardado', msg);
         calcularYMostrarPuntos();
       } catch (e) {
-        // Si algunas predicciones fueron bloqueadas por partido ya cerrado,
-        // las demás SÍ se guardaron (el fix ya no borra antes de insertar).
         if (e.bloqueadas && e.bloqueadas.length) {
           const nombresPartidos = e.bloqueadas.map(b => {
             const p = partidos.find(x => x.id === b.partido_id);
@@ -279,9 +294,8 @@
           }).join(', ');
           mostrarError('alGuardado',
             `⚠️ ${e.guardadas} predicción(es) guardadas correctamente. ` +
-            `${e.bloqueadas.length} no se pudieron guardar porque ya cerraron: ${nombresPartidos}`
+            `${e.bloqueadas.length} no se pudieron guardar: ${nombresPartidos}`
           );
-          // Recargar predicciones reales desde BD para reflejar el estado correcto
           predsLocal = await DB.getPredicciones(userId);
           renderQ();
           calcularYMostrarPuntos();
