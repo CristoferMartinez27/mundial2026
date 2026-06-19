@@ -4,8 +4,8 @@
 //     de tu proyecto en https://supabase.com/dashboard
 // ============================================================
 
-const SUPABASE_URL = 'https://fpnyxizzxrukbyryuiih.supabase.co';   // <-- cambia esto
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZwbnl4aXp6eHJ1a2J5cnl1aWloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNDEwMTksImV4cCI6MjA4ODYxNzAxOX0.lTtS6x5a69TKJTs8fS_NtcpXStaifqmz80FgFF460nQ';                   // <-- cambia esto
+const SUPABASE_URL = 'https://fpnyxizzxrukbyryuiih.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZwbnl4aXp6eHJ1a2J5cnl1aWloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNDEwMTksImV4cCI6MjA4ODYxNzAxOX0.lTtS6x5a69TKJTs8fS_NtcpXStaifqmz80FgFF460nQ';
 
 // Cliente Supabase (usamos la API REST directamente, sin SDK extra)
 const SB = {
@@ -29,14 +29,11 @@ const SB = {
   async _fetch(url, options = {}) {
     let res = await fetch(url, { ...options, headers: { ...this.headers(), ...(options.headers||{}) } });
     if (res.status === 401) {
-      // Token expirado en el servidor — refrescar silenciosamente
       const refreshed = await SBAuth.refreshSession();
       if (!refreshed) {
-        // Refresh también muerto — mandar al login
         window.location.href = getBasePath() + 'pages/login.html';
         throw new Error('Sesión expirada');
       }
-      // Reintentar con el nuevo token
       res = await fetch(url, { ...options, headers: { ...this.headers(), ...(options.headers||{}) } });
     }
     return res;
@@ -108,7 +105,6 @@ const SBAuth = {
     return this.getSession()?.user || null;
   },
 
-  // Regresa el perfil del usuario (tabla profiles)
   async getProfile(userId) {
     try {
       const rows = await SB.get('profiles', `?id=eq.${userId}&select=*`);
@@ -116,7 +112,6 @@ const SBAuth = {
     } catch { return null; }
   },
 
-  // Convierte username → email interno (el usuario nunca lo ve)
   _toEmail(username) {
     return `${username.toLowerCase().replace(/[^a-z0-9._-]/g, '_')}@mundial2026.app`;
   },
@@ -178,7 +173,6 @@ const SBAuth = {
     return profile?.es_admin === true;
   },
 
-  // Refresca el access_token usando el refresh_token guardado
   async refreshSession() {
     const session = this.getSession();
     if (!session?.refresh_token) return null;
@@ -189,7 +183,6 @@ const SBAuth = {
         body: JSON.stringify({ refresh_token: session.refresh_token }),
       });
       if (!res.ok) {
-        // Refresh también expiró — cerrar sesión limpiamente
         this.clearSession();
         localStorage.removeItem('user_profile');
         return null;
@@ -202,7 +195,6 @@ const SBAuth = {
     }
   },
 
-  // Verifica si el access_token está expirado (con 60s de margen)
   isExpired() {
     const session = this.getSession();
     if (!session?.access_token) return true;
@@ -214,7 +206,6 @@ const SBAuth = {
     }
   },
 
-  // Intenta refrescar el token si está por expirar (llamado proactivamente al cargar)
   async ensureSession() {
     if (this.isExpired()) {
       const refreshed = await this.refreshSession();
@@ -276,50 +267,73 @@ const DB = {
     return obj;
   },
 
-  // FIX: usa DELETE + INSERT en lugar de upsert para evitar conflictos de clave duplicada
-  async upsertPrediccion(userId, partidoId, golesLocal, golesVisitante) {
-    // Borrar predicción existente si hay
-    await fetch(`${SB.url}/rest/v1/predicciones?user_id=eq.${userId}&partido_id=eq.${partidoId}`, {
-      method: 'DELETE',
-      headers: SB.headers(),
-    });
-    // Insertar nueva
-    const res = await fetch(`${SB.url}/rest/v1/predicciones`, {
-      method: 'POST',
-      headers: { ...SB.headers(), 'Prefer': 'return=representation' },
-      body: JSON.stringify({ user_id: userId, partido_id: partidoId, goles_local: golesLocal, goles_visitante: golesVisitante }),
-    });
-    if (!res.ok) throw await res.json();
-    return res.json();
-  },
-
-  // FIX principal: evita el error de duplicate key usando ON CONFLICT con Prefer correcto
+  // ── UPSERT PRINCIPAL ──
+  // Estrategia: GET para saber qué ya existe → INSERT para nuevos → PATCH para existentes.
+  // No usa DELETE, respetando la política RLS de "solo admins borran".
+  // No usa merge-duplicates porque la política de UPDATE bloquea el upsert interno de Postgres.
   async upsertPrediccionesBulk(userId, preds) {
     if (!preds.length) return [];
-    const data = preds.map(p => ({ user_id: userId, ...p }));
 
-    // Intentar con merge-duplicates (respeta el constraint único)
-    const res = await fetch(`${SB.url}/rest/v1/predicciones`, {
-      method: 'POST',
-      headers: {
-        ...SB.headers(),
-        'Prefer': 'resolution=merge-duplicates,return=representation',
-      },
-      body: JSON.stringify(data),
-    });
+    // 1. Traer las predicciones que ya existen para estos partido_id
+    const ids = preds.map(p => p.partido_id).join(',');
+    let existentes = [];
+    try {
+      existentes = await SB.get(
+        'predicciones',
+        `?user_id=eq.${userId}&partido_id=in.(${ids})&select=partido_id`
+      );
+    } catch {
+      existentes = [];
+    }
+    const setExistentes = new Set(existentes.map(r => r.partido_id));
 
-    if (res.ok) return res.json();
+    const paraInsertar   = preds.filter(p => !setExistentes.has(p.partido_id));
+    const paraActualizar = preds.filter(p =>  setExistentes.has(p.partido_id));
 
-    // Fallback: guardar una por una con delete+insert
-    const errors = [];
-    for (const p of preds) {
-      try {
-        await this.upsertPrediccion(userId, p.partido_id, p.goles_local, p.goles_visitante);
-      } catch (e) {
-        errors.push(e);
+    const errores = [];
+
+    // 2. INSERT en bloque para predicciones nuevas
+    if (paraInsertar.length) {
+      const body = paraInsertar.map(p => ({ user_id: userId, ...p }));
+      const res = await fetch(`${SB.url}/rest/v1/predicciones`, {
+        method: 'POST',
+        headers: { ...SB.headers(), 'Prefer': 'return=minimal' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        // Si algún INSERT falla por RLS (partido cerrado), no es error fatal —
+        // el usuario simplemente no puede predecir ese partido.
+        // Solo propagamos errores inesperados (no 403/42501).
+        if (err.code !== '42501' && res.status !== 403) {
+          errores.push(err);
+        }
       }
     }
-    if (errors.length) throw errors[0];
+
+    // 3. PATCH uno por uno para predicciones existentes
+    // (RLS valida user_id + partido abierto en cada PATCH)
+    for (const p of paraActualizar) {
+      try {
+        const res = await fetch(
+          `${SB.url}/rest/v1/predicciones?user_id=eq.${userId}&partido_id=eq.${p.partido_id}`,
+          {
+            method: 'PATCH',
+            headers: { ...SB.headers(), 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ goles_local: p.goles_local, goles_visitante: p.goles_visitante }),
+          }
+        );
+        // 403 / 42501 = partido cerrado por RLS — silencioso, es el comportamiento correcto
+        if (!res.ok && res.status !== 403) {
+          const err = await res.json();
+          if (err.code !== '42501') errores.push(err);
+        }
+      } catch (e) {
+        errores.push(e);
+      }
+    }
+
+    if (errores.length) throw errores[0];
     return [];
   },
 
@@ -339,7 +353,6 @@ const DB = {
 
   // ── TABLA DE LÍDERES (calculada en cliente) ──
   async calcularLideres() {
-    // Traer predicciones sin límite de filas (Supabase por defecto corta a 1000)
     const todasLasPredicciones = await this._getAllPredicciones();
 
     const [partidosFrescos, profiles] = await Promise.all([
@@ -377,7 +390,7 @@ const DB = {
       if (!res.ok) throw await res.json();
       const page = await res.json();
       todas = todas.concat(page);
-      if (page.length < pageSize) break; // última página
+      if (page.length < pageSize) break;
       offset += pageSize;
     }
     return todas;
