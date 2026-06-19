@@ -272,70 +272,79 @@ const DB = {
   // No usa DELETE, respetando la política RLS de "solo admins borran".
   // No usa merge-duplicates porque la política de UPDATE bloquea el upsert interno de Postgres.
   async upsertPrediccionesBulk(userId, preds) {
-    if (!preds.length) return [];
+  if (!preds.length) return [];
 
-    // 1. Traer las predicciones que ya existen para estos partido_id
-    const ids = preds.map(p => p.partido_id).join(',');
-    let existentes = [];
-    try {
-      existentes = await SB.get(
-        'predicciones',
-        `?user_id=eq.${userId}&partido_id=in.(${ids})&select=partido_id`
-      );
-    } catch {
-      existentes = [];
-    }
-    const setExistentes = new Set(existentes.map(r => r.partido_id));
+  // 1. Traer las predicciones que ya existen para estos partido_id
+  const ids = preds.map(p => p.partido_id).join(',');
+  let existentes = [];
+  try {
+    existentes = await SB.get(
+      'predicciones',
+      `?user_id=eq.${userId}&partido_id=in.(${ids})&select=partido_id`
+    );
+  } catch {
+    existentes = [];
+  }
+  const setExistentes = new Set(existentes.map(r => r.partido_id));
 
-    const paraInsertar   = preds.filter(p => !setExistentes.has(p.partido_id));
-    const paraActualizar = preds.filter(p =>  setExistentes.has(p.partido_id));
+  const paraInsertar   = preds.filter(p => !setExistentes.has(p.partido_id));
+  const paraActualizar = preds.filter(p =>  setExistentes.has(p.partido_id));
 
-    const errores = [];
+  const errores = [];
 
-    // 2. INSERT en bloque para predicciones nuevas
-    if (paraInsertar.length) {
-      const body = paraInsertar.map(p => ({ user_id: userId, ...p }));
-      const res = await fetch(`${SB.url}/rest/v1/predicciones`, {
-        method: 'POST',
-        headers: { ...SB.headers(), 'Prefer': 'return=minimal' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        // Si algún INSERT falla por RLS (partido cerrado), no es error fatal —
-        // el usuario simplemente no puede predecir ese partido.
-        // Solo propagamos errores inesperados (no 403/42501).
-        if (err.code !== '42501' && res.status !== 403) {
-          errores.push(err);
-        }
-      }
-    }
-
-    // 3. PATCH uno por uno para predicciones existentes
-    // (RLS valida user_id + partido abierto en cada PATCH)
-    for (const p of paraActualizar) {
-      try {
-        const res = await fetch(
-          `${SB.url}/rest/v1/predicciones?user_id=eq.${userId}&partido_id=eq.${p.partido_id}`,
-          {
-            method: 'PATCH',
-            headers: { ...SB.headers(), 'Prefer': 'return=minimal' },
-            body: JSON.stringify({ goles_local: p.goles_local, goles_visitante: p.goles_visitante }),
+  // 2. INSERT uno por uno (no en bloque) para manejar duplicados inesperados
+  for (const p of paraInsertar) {
+    const res = await fetch(`${SB.url}/rest/v1/predicciones`, {
+      method: 'POST',
+      headers: { ...SB.headers(), 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ user_id: userId, ...p }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      if (err.code === '23505') {
+        // Duplicate key — ya existe aunque el GET no lo vio (race condition).
+        // Reconvertir a PATCH en lugar de fallar.
+        try {
+          const resPatch = await fetch(
+            `${SB.url}/rest/v1/predicciones?user_id=eq.${userId}&partido_id=eq.${p.partido_id}`,
+            {
+              method: 'PATCH',
+              headers: { ...SB.headers(), 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ goles_local: p.goles_local, goles_visitante: p.goles_visitante }),
+            }
+          );
+          if (!resPatch.ok && resPatch.status !== 403) {
+            const errPatch = await resPatch.json();
+            if (errPatch.code !== '42501') errores.push(errPatch);
           }
-        );
-        // 403 / 42501 = partido cerrado por RLS — silencioso, es el comportamiento correcto
-        if (!res.ok && res.status !== 403) {
-          const err = await res.json();
-          if (err.code !== '42501') errores.push(err);
-        }
-      } catch (e) {
-        errores.push(e);
+        } catch (e) { errores.push(e); }
+      } else if (err.code !== '42501' && res.status !== 403) {
+        errores.push(err);
       }
     }
+  }
 
-    if (errores.length) throw errores[0];
-    return [];
-  },
+  // 3. PATCH para predicciones que ya existían
+  for (const p of paraActualizar) {
+    try {
+      const res = await fetch(
+        `${SB.url}/rest/v1/predicciones?user_id=eq.${userId}&partido_id=eq.${p.partido_id}`,
+        {
+          method: 'PATCH',
+          headers: { ...SB.headers(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ goles_local: p.goles_local, goles_visitante: p.goles_visitante }),
+        }
+      );
+      if (!res.ok && res.status !== 403) {
+        const err = await res.json();
+        if (err.code !== '42501') errores.push(err);
+      }
+    } catch (e) { errores.push(e); }
+  }
+
+  if (errores.length) throw errores[0];
+  return [];
+},
 
   // ── PROFILES / USUARIOS ──
   async getProfiles() {
