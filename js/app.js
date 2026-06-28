@@ -1,20 +1,29 @@
 // ============================================================
-//  app.js v2  — Lógica del juego (estadísticas, predicciones,
-//               clasificación). Usa DB.* de supabase.js para datos.
+//  app.js — Lógica del juego (estadísticas, predicciones,
+//            clasificación). Usa DB.* de supabase.js para datos.
 // ============================================================
 
 // ── MAPA DE NOMBRES DE REPECHAJE ─────────────────────────────
-// Permite mostrar el nombre real aunque en la BD aún diga el placeholder
+// Resuelve placeholders del sorteo al nombre real del equipo
 const REPECHAJE_NOMBRES = {
   "UEFA Play-Off A": "Bosnia y Herzegovina",
   "UEFA Play-Off B": "Suecia",
   "UEFA Play-Off C": "Turquía",
-  "UEFA Play-Off D": "Republica Checa",
+  "UEFA Play-Off D": "Chequia",
   "Fifa Play-Off 1": "Rep. Dem. del Congo",
   "Fifa Play-Off 2": "Irak",
+  // Placeholders de 16avos (mejores terceros) — ya resueltos
+  "3A/B/C/D/F": "Paraguay",
+  "3C/D/F/G/H": "Suecia",
+  "3C/E/F/H/I": "Ecuador",
+  "3E/H/I/J/K": "Rep. Dem. del Congo",
+  "3B/E/F/I/J": "Bosnia y Herzegovina",
+  "3A/E/H/I/J": "Senegal",
+  "3E/F/G/I/J": "Argelia",
+  "3D/E/I/J/L": "Ghana",
 };
 
-// ── ESTADÍSTICAS POR SELECCIÓN — valores por equipo individual
+// ── ESTADÍSTICAS POR SELECCIÓN ───────────────────────────────
 const EQUIPOS_STATS_DEFAULT = {
   "Alemania":                { goles:2.0, tarjetas:1.8, offsides:4.0, ranking:10 },
   "Arabia Saudí":            { goles:1.5, tarjetas:2.5, offsides:2.5, ranking:32 },
@@ -28,25 +37,24 @@ const EQUIPOS_STATS_DEFAULT = {
   "Cabo Verde":              { goles:0.9, tarjetas:2.4, offsides:1.8, ranking:67 },
   "Canadá":                  { goles:1.8, tarjetas:2.0, offsides:3.5, ranking:29 },
   "Catar":                   { goles:1.0, tarjetas:2.2, offsides:1.8, ranking:56 },
-  "Republica Checa":         { goles:1.4, tarjetas:2.1, offsides:2.8, ranking:43 },
+  "Chequia":                 { goles:1.4, tarjetas:2.1, offsides:2.8, ranking:43 },
   "Colombia":                { goles:1.5, tarjetas:2.3, offsides:3.2, ranking:14 },
   "Corea del Sur":           { goles:1.5, tarjetas:2.0, offsides:2.8, ranking:49 },
   "Costa de Marfil":         { goles:1.6, tarjetas:2.4, offsides:2.5, ranking:64 },
   "Croacia":                 { goles:1.5, tarjetas:2.1, offsides:3.8, ranking:11 },
-  "Curazao":                 { goles:1.1, tarjetas:2.6, offsides:2.2, ranking:81 },
+  "Curasao":                 { goles:1.1, tarjetas:2.6, offsides:2.2, ranking:81 },
   "EEUU":                    { goles:1.5, tarjetas:2.4, offsides:3.8, ranking:15 },
   "Ecuador":                 { goles:1.3, tarjetas:2.3, offsides:2.5, ranking:50 },
   "Egipto":                  { goles:1.3, tarjetas:2.3, offsides:2.2, ranking:58 },
   "Escocia":                 { goles:1.4, tarjetas:2.2, offsides:2.8, ranking:38 },
   "España":                  { goles:2.3, tarjetas:1.8, offsides:4.2, ranking:1  },
-  "Fifa Play-Off 1":         { goles:1.3, tarjetas:2.2, offsides:2.0, ranking:55 },
-  "Fifa Play-Off 2":         { goles:1.2, tarjetas:2.2, offsides:1.9, ranking:58 },
   "Francia":                 { goles:2.0, tarjetas:1.9, offsides:4.1, ranking:3  },
   "Ghana":                   { goles:1.4, tarjetas:2.5, offsides:2.2, ranking:72 },
   "Haití":                   { goles:0.8, tarjetas:3.0, offsides:1.8, ranking:73 },
+  
   "Holanda":                 { goles:2.0, tarjetas:1.8, offsides:4.1, ranking:7  },
   "Inglaterra":              { goles:1.9, tarjetas:1.8, offsides:4.5, ranking:4  },
-  "Republica Checa":         { goles:1.2, tarjetas:2.3, offsides:2.0, ranking:58 },
+  "Irak":                    { goles:1.2, tarjetas:2.3, offsides:2.0, ranking:58 },
   "Irán":                    { goles:1.3, tarjetas:2.2, offsides:2.0, ranking:47 },
   "Japón":                   { goles:1.7, tarjetas:1.6, offsides:2.5, ranking:46 },
   "Jordania":                { goles:1.1, tarjetas:2.3, offsides:1.8, ranking:64 },
@@ -57,7 +65,6 @@ const EQUIPOS_STATS_DEFAULT = {
   "Panamá":                  { goles:0.9, tarjetas:3.0, offsides:2.0, ranking:60 },
   "Paraguay":                { goles:1.2, tarjetas:2.7, offsides:2.2, ranking:67 },
   "Portugal":                { goles:1.7, tarjetas:1.7, offsides:3.8, ranking:6  },
-  "RD Congo":                { goles:1.2, tarjetas:2.5, offsides:2.0, ranking:62 },
   "Rep. Dem. del Congo":     { goles:1.2, tarjetas:2.5, offsides:2.0, ranking:62 },
   "Senegal":                 { goles:1.3, tarjetas:2.4, offsides:2.5, ranking:12 },
   "Sudáfrica":               { goles:1.2, tarjetas:2.6, offsides:2.2, ranking:60 },
@@ -65,15 +72,11 @@ const EQUIPOS_STATS_DEFAULT = {
   "Suiza":                   { goles:1.3, tarjetas:1.9, offsides:3.2, ranking:18 },
   "Túnez":                   { goles:1.1, tarjetas:2.4, offsides:2.0, ranking:47 },
   "Turquía":                 { goles:1.4, tarjetas:2.3, offsides:2.5, ranking:46 },
-  "UEFA Play-Off A":         { goles:1.3, tarjetas:2.1, offsides:2.5, ranking:35 },
-  "UEFA Play-Off B":         { goles:1.3, tarjetas:2.1, offsides:2.2, ranking:43 },
-  "UEFA Play-Off C":         { goles:1.3, tarjetas:2.1, offsides:2.2, ranking:46 },
-  "UEFA Play-Off D":         { goles:1.3, tarjetas:2.2, offsides:2.0, ranking:50 },
   "Uruguay":                 { goles:1.7, tarjetas:2.6, offsides:2.8, ranking:17 },
   "Uzbekistán":              { goles:1.0, tarjetas:2.1, offsides:1.8, ranking:52 },
 };
 
-// Cache en memoria (se carga desde BD al iniciar)
+// Cache en memoria
 let _statsCache = null;
 let _partidosCache = null;
 
@@ -98,13 +101,12 @@ function invalidarCachePartidos() { _partidosCache = null; }
 function invalidarCacheStats()    { _statsCache = null; }
 
 // ── GRUPOS ─────────────────────────────────────────────────
-// Usamos los nombres reales de repechaje directamente en los grupos
 const GRUPOS = {
-  A: ["México","Sudáfrica","Corea del Sur","Republica Checa"],
+  A: ["México","Sudáfrica","Corea del Sur","Chequia"],
   B: ["Canadá","Catar","Suiza","Bosnia y Herzegovina"],
   C: ["Brasil","Marruecos","Haití","Escocia"],
   D: ["EEUU","Paraguay","Australia","Turquía"],
-  E: ["Alemania","Curazao","Costa de Marfil","Ecuador"],
+  E: ["Alemania","Curasao","Costa de Marfil","Ecuador"],
   F: ["Holanda","Japón","Suecia","Túnez"],
   G: ["Bélgica","Egipto","Irán","Nueva Zelanda"],
   H: ["España","Cabo Verde","Arabia Saudí","Uruguay"],
@@ -130,18 +132,16 @@ const FECHA_ISO = {
   "Dom 19 Jul":"2026-07-19",
 };
 
-// Guatemala = UTC-6. Convierte la hora local del partido a UTC y resta 30 minutos.
+// Guatemala = UTC-6. Cierre = 30 min antes del partido.
 function _deadlineUTC(p) {
   const iso = FECHA_ISO[p.fecha];
   if (!iso || !p.hora) return null;
   const [hh, mm] = p.hora.split(':').map(Number);
-  // hora local Guatemala → UTC: sumar 6 horas
-  const totalMinutosUTC = hh * 60 + mm + 6 * 60 - 30; // -30 min antes del partido
+  const totalMinutosUTC = hh * 60 + mm + 6 * 60 - 30;
   const diaExtra = Math.floor(totalMinutosUTC / (24 * 60));
   const minutosDia = ((totalMinutosUTC % (24 * 60)) + 24 * 60) % (24 * 60);
   const hhUTC = String(Math.floor(minutosDia / 60)).padStart(2, '0');
   const mmUTC = String(minutosDia % 60).padStart(2, '0');
-  // Si pasa medianoche UTC, avanzar el día
   const fechaBase = new Date(iso + 'T00:00:00Z');
   fechaBase.setUTCDate(fechaBase.getUTCDate() + diaExtra);
   const isoFinal = fechaBase.toISOString().slice(0, 10);
@@ -165,8 +165,6 @@ function textoDeadline(p) {
 }
 
 // ── RESOLUCIÓN DE NOMBRE DE EQUIPO ────────────────────────
-// Resuelve el placeholder al nombre real usando el mapa REPECHAJE_NOMBRES
-// o calculando clasificación/resultados previos
 function resolverNombreEquipo(nombre) {
   return REPECHAJE_NOMBRES[nombre] || nombre;
 }
@@ -174,7 +172,6 @@ function resolverNombreEquipo(nombre) {
 // ── MOTOR DE PREDICCIÓN ───────────────────────────────────
 async function predecirPartido(eqA, eqB) {
   const S  = await obtenerStats();
-  // Intentar con el nombre resuelto si no está en stats
   const A  = S[eqA] || S[resolverNombreEquipo(eqA)] || { goles:1.2, tarjetas:1.5, offsides:1.4, ranking:50 };
   const B  = S[eqB] || S[resolverNombreEquipo(eqB)] || { goles:1.2, tarjetas:1.5, offsides:1.4, ranking:50 };
   const f  = r => r<=5?1.25 : r<=15?1.12 : r<=30?1.00 : r<=50?0.88 : 0.78;
@@ -184,13 +181,9 @@ async function predecirPartido(eqA, eqB) {
   const mA = Math.round(gA), mB = Math.round(gB);
   const nomA = eqA.split(' ')[0];
   const nomB = eqB.split(' ')[0];
-  const sug1 = { a:mA,    b:mB    };
-  const sug2 = mA > mB
-    ? { a:mA+1, b:mB   }
-    : { a:mB+1, b:mA   };
-  const sug3 = mB > mA
-    ? { a:mA,   b:mB+1 }
-    : { a:mA,   b:mA+1 };
+  const sug1 = { a:mA, b:mB };
+  const sug2 = mA > mB ? { a:mA+1, b:mB } : { a:mB+1, b:mA };
+  const sug3 = mB > mA ? { a:mA, b:mB+1 } : { a:mA, b:mA+1 };
   const empateVal = Math.max(mA, mB);
   const sug4 = { a:empateVal, b:empateVal };
   const sugerencias = [
@@ -218,7 +211,6 @@ async function predecirPartido(eqA, eqB) {
 }
 
 // ── CLASIFICACIÓN DE GRUPOS ───────────────────────────────
-// Resuelve nombres de repechaje al buscar en la tabla
 function calcularClasificacion(grupo, partidos) {
   const equiposGrupo = GRUPOS[grupo];
   if (!equiposGrupo) return [];
@@ -226,11 +218,9 @@ function calcularClasificacion(grupo, partidos) {
   equiposGrupo.forEach(eq => {
     tabla[eq] = {equipo:eq, pj:0, pg:0, pe:0, pp:0, gf:0, gc:0, pts:0};
   });
-
   partidos
     .filter(p => p.grupo === grupo && p.estado === 'finalizado')
     .forEach(p => {
-      // Resolver nombres reales (el partido puede tener el placeholder aún)
       const localReal  = resolverNombreEquipo(p.local);
       const visitReal  = resolverNombreEquipo(p.visitante);
       const L = tabla[localReal];
@@ -243,7 +233,6 @@ function calcularClasificacion(grupo, partidos) {
       else if (p.goles_local < p.goles_visitante) { V.pg++; V.pts+=3; L.pp++; }
       else                                         { L.pe++; V.pe++; L.pts++; V.pts++; }
     });
-
   return Object.values(tabla)
     .map(e => ({...e, dg:e.gf-e.gc}))
     .sort((a,b) => b.pts-a.pts || b.dg-a.dg || b.gf-a.gf);
@@ -252,10 +241,9 @@ function calcularClasificacion(grupo, partidos) {
 // ── RESOLUCIÓN DE CLASIFICADOS ────────────────────────────
 function resolverEquipo(label, partidos) {
   if (!label || !partidos) return label;
-  // Resolver nombres de repechaje primero
+  // Resolver nombres de repechaje y mejores terceros
   const nombreResuelto = resolverNombreEquipo(label);
   if (nombreResuelto !== label) return nombreResuelto;
-
   const mPos = label.match(/^([123])([A-L])$/);
   if (mPos) {
     const t = calcularClasificacion(mPos[2], partidos);
@@ -282,14 +270,7 @@ function resolverEquipo(label, partidos) {
 
 // ── PUNTOS QUINIELA ───────────────────────────────────────
 function calcularPuntos(pred, partido) {
-  return calcularPuntosRaw(pred, {
-    ...partido,
-    goles_local:      partido.goles_local,
-    goles_visitante:  partido.goles_visitante,
-    tiene_penales:    partido.tiene_penales,
-    penales_local:    partido.penales_local,
-    penales_visitante:partido.penales_visitante,
-  });
+  return calcularPuntosRaw(pred, partido);
 }
 
 // ── HELPERS UI ────────────────────────────────────────────
@@ -306,5 +287,5 @@ function mostrarOk(elId, msg) {
 }
 function setLoading(elId, txt = 'Cargando...') {
   const el = document.getElementById(elId);
-  if (el) el.innerHTML = `<div class="loading"><div class="spinner"></div>${txt}</div>`;
+  if (el) el.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--text-dim)">${txt}</div>`;
 }
