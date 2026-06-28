@@ -407,22 +407,46 @@ const DB = {
 };
 
 // ── HELPER PUNTOS (sin depender de localStorage) ────────────
+// ── HELPER PUNTOS (sin depender de localStorage) ────────────
 function calcularPuntosRaw(pred, partido) {
   if (!pred || partido.estado !== 'finalizado') return null;
-  const ra = partido.goles_local, rb = partido.goles_visitante;
-  const pa = pred.golesLocal,     pb = pred.golesVisitante;
+
+  const ra = partido.goles_local,      rb = partido.goles_visitante;
+  const pa = pred.golesLocal,          pb = pred.golesVisitante;
   if (pa === undefined || pa === null || pa === '') return null;
+
+  // 5 pts: marcador exacto
   if (pa === ra && pb === rb) return 5;
+
+  const puedePenales = !!partido.puede_ir_a_penales;
+
+  // Determinar ganador real
   let ganReal;
   if (partido.tiene_penales) {
     ganReal = (partido.penales_local || 0) > (partido.penales_visitante || 0) ? 'L' : 'V';
   } else {
     ganReal = ra > rb ? 'L' : rb > ra ? 'V' : 'E';
   }
+
+  // Determinar ganador predicho
   const ganPred = pa > pb ? 'L' : pb > pa ? 'V' : 'E';
+
+  // Caso especial eliminatorias: partido fue a penales Y usuario predijo empate
+  // → se premia adivinar el empate aunque los goles exactos difieran
+  if (puedePenales && partido.tiene_penales && ganPred === 'E') {
+    if ((ra - rb) === (pa - pb)) return 3; // diff 0 = 0
+    return 2;
+  }
+
+  // 3 pts: ganador correcto + misma diferencia de goles
   if (ganReal === ganPred && (ra - rb) === (pa - pb)) return 3;
+
+  // 2 pts: solo ganador correcto
   if (ganReal === ganPred) return 2;
-  if ((ra + rb) === (pa + pb)) return 1;
+
+  // 1 pt: total de goles igual — SOLO en fase de grupos (no en eliminatorias)
+  if (!puedePenales && (ra + rb) === (pa + pb)) return 1;
+
   return 0;
 }
 
